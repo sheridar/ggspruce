@@ -136,9 +136,76 @@ NULL
   clrs
 }
 
+#' Get color index from vector of indices or names
+#'
+#' @param clrs Vector of colors
+#' @param idx Vector with numeric indices or names to match with clrs vector
+#' @noRd
+.get_clr_idx <- function(clrs, idx) {
+
+  if (is.null(idx)) return(NULL)
+
+  res <- idx
+
+  if (is.character(idx)) {
+    if (is.null(names(clrs))) {
+      cli::cli_abort(
+        "Names must be provided for `colors` when `adjust_colors` or
+             `exclude_colors` is a character vector."
+      )
+    }
+
+    res <- match(idx, names(clrs))
+
+    if (any(is.na(res))) {
+      cli::cli_abort(
+        "Not all values for `adjust_colors` and `exclude_colors`
+             are present in `colors`."
+      )
+    }
+  }
+
+  res
+}
+
+#' Plot color palette
+#'
+#' @param colors Character vector of colors to adjust
+#' @param label_size Size of labels
+#' @param label_color Color of labels
+#' @param ... Additional arguments to pass to `ggplot2::geom_bar`
+#' @export
+plot_colors <- function(colors, label_size = 14, label_color = "white", ...) {
+
+  idx <- as.character(seq_along(colors))
+
+  dat <- data.frame(
+    x   = factor(idx, idx),
+    lab = colors
+  )
+
+  res <- ggplot2::ggplot(dat, aes(x, fill = x)) +
+    ggplot2::geom_bar(...) +
+    ggplot2::geom_text(
+      aes(y = 0.5, label = lab),
+      angle = 90,
+      color = label_color,
+      size  = label_size / .pt
+    ) +
+    ggplot2::scale_fill_manual(values = colors) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(c(0.03, 0))) +
+    ggplot2::theme_void() +
+    ggplot2::theme(
+      legend.position = "none",
+      axis.text.x     = ggplot2::element_text(size = 14)
+    )
+
+  res
+}
+
 #' Adjust colors based on similarity
 #'
-#' @param colors Colors to adjust
+#' @param colors Character vector of colors to adjust
 #' @param difference Color difference threshold (CIE200 score) to use for
 #' adjusting `colors`.
 #' Colors will be adjusted so the minimum pairwise difference
@@ -150,7 +217,7 @@ NULL
 #' applying the filter.
 #' A vector can be passed to adjust based on multiple colorblind filters.
 #' Possible values include, "none", "deutan", "protan", and "tritan".
-#' @param highlight Index indicating color(s) to specifically adjust.
+#' @param adjust_colors Index indicating color(s) to specifically adjust.
 #' Should be an integer vector, or a character vector containing names matching
 #' those provided for `colors`.
 #' @param range A vector containing the minimum and maximum values to use when
@@ -161,12 +228,13 @@ NULL
 #' speed.
 #' @export
 spruce_up_colors <- function(colors, difference = 10, adjust = "lightness",
-                             colorblind = "none", highlight = NULL,
-                             range = NULL, maxit = 500) {
+                             range = NULL, colorblind = "none",
+                             adjust_colors = NULL, exclude_colors = NULL,
+                             maxit = 500) {
 
   adj_params <- switch(
     adjust,
-    lightness  = list("lab", 1, c(0, 80)),
+    lightness  = list("lab", 1, c(3, 85)),
     a          = list("lab", 2, c(-128, 127)),
     b          = list("lab", 3, c(-128, 127)),
     hue        = list("hsl", 1, c(0, 360)),
@@ -185,25 +253,10 @@ spruce_up_colors <- function(colors, difference = 10, adjust = "lightness",
   clr_filts <- purrr::set_names(clr_filts)
 
   # Identify colors to adjust
-  if (!is.null(highlight)) {
-    clr_idx <- highlight
+  ex_idx <- .get_clr_idx(colors, exclude_colors)
 
-    if (is.character(highlight)) {
-      if (is.null(names(colors))) {
-        cli::cli_abort(
-          "Names must be provided for `colors` when `highlight` is a character
-           vector."
-        )
-      }
-
-      clr_idx <- match(highlight, names(colors))
-
-      if (any(is.na(clr_idx))) {
-        cli::cli_abort(
-          "Not all values for `highlight` are present in `colors`."
-        )
-      }
-    }
+  if (!is.null(adjust_colors)) {
+    clr_idx <- .get_clr_idx(colors, adjust_colors)
 
   } else {
     clr_idx <- purrr::map(clr_filts, ~ {
@@ -219,6 +272,8 @@ spruce_up_colors <- function(colors, difference = 10, adjust = "lightness",
     })
 
     clr_idx <- purrr::reduce(clr_idx, unique)
+
+    clr_idx <- clr_idx[!clr_idx %in% ex_idx]
 
     if (length(clr_idx) == 0) return(colors)
   }
@@ -247,7 +302,7 @@ spruce_up_colors <- function(colors, difference = 10, adjust = "lightness",
       clr_filt     = clr_filts,
       space        = space,
       val_idx      = val_idx,
-      only_clr_idx = !is.null(highlight)
+      only_clr_idx = !is.null(adjust_colors)
     )
 
     res
@@ -258,9 +313,10 @@ spruce_up_colors <- function(colors, difference = 10, adjust = "lightness",
 
   # Check difference for optimized colors
   # * if difference not met, rerun and allow all colors to be adjusted
-  # * do not do this when highlight colors are passed
-  if (min_diff < difference && is.null(highlight)) {
+  # * do not do this when adjust_colors colors are passed
+  if (min_diff < difference && is.null(adjust_colors)) {
     full_idx  <- seq_along(colors)
+    full_idx  <- full_idx[!full_idx %in% ex_idx]
     full_res  <- .run_gensa(full_idx)
     full_diff <- -full_res$value
 
@@ -291,19 +347,19 @@ spruce_up_colors <- function(colors, difference = 10, adjust = "lightness",
 #'
 #' @export
 scale_color_spruce <- function(..., values, difference = 10, adjust = "lightness",
-                               colorblind = "none", highlight = NULL,
+                               colorblind = "none", adjust_colors = NULL,
                                range = NULL, maxit = 500,
                                aesthetics = "colour", breaks = ggplot2::waiver(),
                                na.value = "grey50") {
 
   values <- spruce_up_colors(
-    colors     = values,
-    difference = difference,
-    adjust     = adjust,
-    colorblind = colorblind,
-    highlight  = highlight,
-    range      = range,
-    maxit      = maxit
+    colors        = values,
+    difference    = difference,
+    adjust        = adjust,
+    colorblind    = colorblind,
+    adjust_colors = adjust_colors,
+    range         = range,
+    maxit         = maxit
   )
 
   ggplot2::scale_color_manual(
@@ -319,19 +375,19 @@ scale_color_spruce <- function(..., values, difference = 10, adjust = "lightness
 #'
 #' @export
 scale_fill_spruce <- function(..., values, difference = 10, adjust = "lightness",
-                              colorblind = "none", highlight = NULL,
+                              colorblind = "none", adjust_colors = NULL,
                               range = NULL, maxit = 500,
                               aesthetics = "fill", breaks = ggplot2::waiver(),
                               na.value = "grey50") {
 
   values <- spruce_up_colors(
-    colors     = values,
-    difference = difference,
-    adjust     = adjust,
-    colorblind = colorblind,
-    highlight  = highlight,
-    range      = range,
-    maxit      = maxit
+    colors        = values,
+    difference    = difference,
+    adjust        = adjust,
+    colorblind    = colorblind,
+    adjust_colors = adjust_colors,
+    range         = range,
+    maxit         = maxit
   )
 
   ggplot2::scale_fill_manual(

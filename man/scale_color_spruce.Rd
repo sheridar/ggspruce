@@ -10,7 +10,7 @@ scale_color_spruce(
   difference = 10,
   adjust = "lightness",
   colorblind = "none",
-  highlight = NULL,
+  adjust_colors = NULL,
   range = NULL,
   maxit = 500,
   aesthetics = "colour",
