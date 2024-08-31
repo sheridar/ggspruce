@@ -9,7 +9,7 @@ spruce_up_colors(
   difference = 10,
   adjust = "lightness",
   range = NULL,
-  colorblind = "none",
+  filter = NULL,
   adjust_colors = NULL,
   exclude_colors = NULL,
   maxit = 500
@@ -28,11 +28,11 @@ is greater than this threshold.}
 \item{range}{A vector containing the minimum and maximum values to use when
 adjusting colors.}
 
-\item{colorblind}{Colorblind filter to apply to color palette when
+\item{filter}{Filter to apply to color palette when
 calculating pairwise differences.
 Colors will be adjusted to minimize the pairwise difference before and after
 applying the filter.
-A vector can be passed to adjust based on multiple colorblind filters.
+A vector can be passed to adjust based on multiple color filters.
 Possible values include, "none", "deutan", "protan", and "tritan".}
 
 \item{adjust_colors}{Index indicating color(s) to specifically adjust.

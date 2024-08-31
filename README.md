@@ -124,17 +124,15 @@ Color similarity can be assessed using colorblind filter(s) and colors
 adjusted to increase perceived differences.
 
 ``` r
-library(dichromat)
+library(colorspace)
 
 clrs <- as.character(met.brewer("Moreau", 10))
-
-cb_type <- "deutan"
 
 new_clrs <- clrs |>
   spruce_up_colors(
     difference = 16,
     adjust     = "lightness",
-    colorblind = cb_type
+    filter     = "deutan"
   )
 
 # Plot adjusted colors without filter
@@ -148,12 +146,12 @@ plt2 <- new_clrs |>
 
 # Plot adjusted colors with colorblind filter
 plt3 <- clrs |>
-  dichromat(cb_type) |>
+  deutan() |>
   plot_colors() +
   ggtitle("original + filter")
   
 plt4 <- new_clrs |>
-  dichromat(cb_type) |>
+  deutan() |>
   plot_colors() +
   ggtitle("adjusted + filter")
   

@@ -9,7 +9,7 @@ scale_fill_spruce(
   values,
   difference = 10,
   adjust = "lightness",
-  colorblind = "none",
+  filter = NULL,
   adjust_colors = NULL,
   range = NULL,
   maxit = 500,

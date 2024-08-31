@@ -99,17 +99,6 @@
       ],
       "Hash": "d954cb1c57e8d8b756165d7ba18aa55a"
     },
-    "dichromat": {
-      "Package": "dichromat",
-      "Version": "2.0-0.1",
-      "Source": "Repository",
-      "Repository": "RSPM",
-      "Requirements": [
-        "R",
-        "stats"
-      ],
-      "Hash": "16e66f2a483e124af5fc6582d26005f7"
-    },
     "fansi": {
       "Package": "fansi",
       "Version": "1.0.6",
