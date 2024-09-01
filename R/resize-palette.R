@@ -24,8 +24,7 @@ expand_colors <- function(colors, n, ...) {
 
   # Calculate difference between original and new x values
   # * for the new colors select the ones that differ most
-  difs <- new_x %>%
-    map_dbl(~ min(abs(.x - x)))
+  difs <- purrr::map_dbl(new_x, ~ min(abs(.x - x)))
 
   names(difs) <- seq_along(new_x)
 
@@ -45,14 +44,14 @@ expand_colors <- function(colors, n, ...) {
 
   # Convert new colors to hex codes
   if (ncol(new_clrs) == 4L) {
-    res <- rgb(
+    res <- grDevices::rgb(
       new_clrs[, 1L], new_clrs[, 2L],
       new_clrs[, 3L], new_clrs[, 4L],
       maxColorValue = 255
     )
 
   } else {
-    res <- rgb(
+    res <- grDevices::rgb(
       new_clrs[, 1L], new_clrs[, 2L], new_clrs[, 3L],
       maxColorValue = 255
     )

@@ -185,6 +185,10 @@ spruce_up_colors <- function(colors, difference = 10, adjust = c("lightness", "h
 
   adj_params <- adj_params[adjust]
 
+  if (!is.null(range)) {
+    adj_params[[adjust[1]]][[3]] <- range
+  }
+
   # Set color filters to test
   filter    <- filter %||% "none"
   clr_filts <- unique(c("none", filter))
@@ -276,7 +280,7 @@ scale_color_spruce <- function(..., values, difference = 10, adjust = c("lightne
                                na.value = "grey50") {
 
   # spruce_up_colors() is called later when resizing palette
-  if (!resize_palette) {
+  if (!resize_palette || !is.null(names(values))) {
     values <- spruce_up_colors(
       colors         = values,
       difference     = difference,
@@ -314,7 +318,7 @@ scale_fill_spruce <- function(..., values, difference = 10, adjust = c("lightnes
                               na.value = "grey50") {
 
   # spruce_up_colors() is called later when resizing palette
-  if (!resize_palette) {
+  if (!resize_palette || !is.null(names(values))) {
     values <- spruce_up_colors(
       colors         = values,
       difference     = difference,
@@ -402,31 +406,48 @@ spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
   }
 
   # Adjust color palette provided by user
+  # * only adjust palette if names are not provided
+  resize_palette <- resize_palette && is.null(names(values))
+
   pal <- function(n) {
-    if (n > length(values)) {
-      if (!is.null(names(values)) || !resize_palette) {
-        cli::cli_abort(
-          "Insufficient values in manual scale.
-           {n} needed but only {length(values)} provided."
+    n_vals <- length(values)
+
+    if (n > n_vals && !resize_palette) {
+      cli::cli_abort(
+        "Insufficient number of colors provided,
+         {n} needed but only {length(values)} provided."
+      )
+    }
+
+    if (n != n_vals && resize_palette) {
+      if (n > n_vals) {
+        cli::cli_warn(
+          "Insufficient number of colors provided,
+           {n - length(values)} additional colors added,
+           set `resize_palette` to `FALSE` to disable this behavior."
+        )
+
+      } else if (n < length(values)) {
+        cli::cli_warn(
+          "Too many colors provided,
+           the {n} most distinct colors will be used,
+           set `resize_palette` to `FALSE` to disable this behavior."
         )
       }
 
-      cli::cli_warn(
-        "Insufficient number of colors provided,
-         {n - length(values)} additional colors added,
-         set `resize_palette` to `FALSE` to modify this behavior."
-      )
+      values <- resize_palette(values, n, filter = filter)
+    }
 
-      values <- expand_colors(values, n)
-
+    if (resize_palette) {
       values <- spruce_up_colors(
-        colors        = values,
-        difference    = difference,
-        adjust        = adjust,
-        filter        = filter,
-        adjust_colors = adjust_colors,
-        range         = range,
-        maxit         = maxit
+        colors         = values,
+        difference     = difference,
+        adjust         = adjust,
+        range          = range,
+        filter         = filter,
+        adjust_colors  = adjust_colors,
+        exclude_colors = exclude_colors,
+        maxit          = maxit
       )
     }
 

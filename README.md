@@ -70,7 +70,7 @@ lightness and/or increasing the difference threshold.
 new_clrs <- clrs |>
   spruce_up_colors(
     difference = 15,
-    adjust     = "hue"
+    adjust     = "lightness"
   )
 
 plot_colors(new_clrs)
