@@ -7,7 +7,7 @@
 spruce_up_colors(
   colors,
   difference = 10,
-  adjust = "lightness",
+  adjust = c("lightness", "hue"),
   range = NULL,
   filter = NULL,
   adjust_colors = NULL,
@@ -23,7 +23,13 @@ adjusting `colors`.
 Colors will be adjusted so the minimum pairwise difference
 is greater than this threshold.}
 
-\item{adjust}{Color attribute to adjust}
+\item{adjust}{Color property to adjust, a vector of multiple properties can
+also be provided, possible values include:
+  - "lightness"
+  - "a"
+  - "b"
+  - "hue"
+  - "saturation}
 
 \item{range}{A vector containing the minimum and maximum values to use when
 adjusting colors.}
@@ -36,6 +42,11 @@ A vector can be passed to adjust based on multiple color filters.
 Possible values include, "none", "deutan", "protan", and "tritan".}
 
 \item{adjust_colors}{Index indicating color(s) to specifically adjust.
+Should be an integer vector, or a character vector containing names matching
+those provided for `colors`.}
+
+\item{exclude_colors}{Index indicating color(s) to exclude when adjusting
+palette.
 Should be an integer vector, or a character vector containing names matching
 those provided for `colors`.}
 

@@ -47,14 +47,44 @@
 #' @export %||%
 NULL
 
-#' Adjust colors based on similarity
+#' Create your own discrete scale
 #'
-#' @param colors Character vector of colors to adjust
+#' These functions allow you to specify your own set of mappings from levels in the
+#' data to aesthetic values.
+#'
+#' The functions `scale_colour_manual()`, `scale_fill_manual()`, `scale_size_manual()`,
+#' etc. work on the aesthetics specified in the scale name: `colour`, `fill`, `size`,
+#' etc. However, the functions `scale_colour_manual()` and `scale_fill_manual()` also
+#' have an optional `aesthetics` argument that can be used to define both `colour` and
+#' `fill` aesthetic mappings via a single function call (see examples). The function
+#' `scale_discrete_manual()` is a generic scale that can work with any aesthetic or set
+#' of aesthetics provided via the `aesthetics` argument.
+#'
+#' @inheritParams ggplot2::scale_x_discrete
+#' @inheritDotParams ggplot2::discrete_scale -expand -position -aesthetics -palette -scale_name
+#' @param aesthetics Character string or vector of character strings listing the
+#'   name(s) of the aesthetic(s) that this scale works with. This can be useful, for
+#'   example, to apply colour settings to the `colour` and `fill` aesthetics at the
+#'   same time, via `aesthetics = c("colour", "fill")`.
+#' @param values a set of aesthetic values to map data values to. The values
+#'   will be matched in order (usually alphabetical) with the limits of the
+#'   scale, or with `breaks` if provided. If this is a named vector, then the
+#'   values will be matched based on the names instead. Data values that don't
+#'   match will be given `na.value`.
 #' @param difference Color difference threshold (CIE200 score) to use for
 #' adjusting `colors`.
 #' Colors will be adjusted so the minimum pairwise difference
 #' is greater than this threshold.
-#' @param adjust Color attribute to adjust
+#' @param adjust Color property to adjust, a vector of multiple properties can
+#' also be provided, possible values include:
+#' - "lightness"
+#' - "a"
+#' - "b"
+#' - "hue"
+#' - "saturation
+#'
+#' @param range A vector containing the minimum and maximum values to use when
+#' adjusting the specified color property.
 #' @param filter Filter to apply to color palette when
 #' calculating pairwise differences.
 #' Colors will be adjusted to minimize the pairwise difference before and after
@@ -64,14 +94,83 @@ NULL
 #' @param adjust_colors Index indicating color(s) to specifically adjust.
 #' Should be an integer vector, or a character vector containing names matching
 #' those provided for `colors`.
+#' @param exclude_colors Index indicating color(s) to exclude when adjusting
+#' palette.
+#' Should be an integer vector, or a character vector containing names matching
+#' those provided for `colors`.
+#' @param maxit Maximum number of iterations to use when optimizing the color
+#' palette.
+#' Higher values will result in more optimal adjustments and a reduction in
+#' speed.
+#' @param breaks One of:
+#'   - `NULL` for no breaks
+#'   - `waiver()` for the default breaks (the scale limits)
+#'   - A character vector of breaks
+#'   - A function that takes the limits as input and returns breaks
+#'     as output
+#'
+#' @param na.value The aesthetic value to use for missing (`NA`) values
+#' @family colour scales
+#' @seealso
+#' The documentation for [differentiation related aesthetics][aes_linetype_size_shape].
+#'
+#' The documentation on [colour aesthetics][aes_colour_fill_alpha].
+#'
+#' The `r link_book(c("manual scales", "manual colour scales sections"), c("scales-other#sec-scale-manual", "scales-colour#sec-manual-colour"))`
+#'
+#' @section Color Blindness:
+#' Many color palettes derived from RGB combinations (like the "rainbow" color
+#' palette) are not suitable to support all viewers, especially those with
+#' color vision deficiencies. Using `viridis` type, which is perceptually
+#' uniform in both colour and black-and-white display is an easy option to
+#' ensure good perceptive properties of your visualizations.
+#' The colorspace package offers functionalities
+#' - to generate color palettes with good perceptive properties,
+#' - to analyse a given color palette, like emulating color blindness,
+#' - and to modify a given color palette for better perceptivity.
+#'
+#' For more information on color vision deficiencies and suitable color choices
+#' see the [paper on the colorspace package](https://arxiv.org/abs/1903.06490)
+#' and references therein.
+#' @name scale_manual
+#' @aliases NULL
+NULL
+
+#' Adjust colors based on similarity
+#'
+#' @param colors Character vector of colors to adjust
+#' @param difference Color difference threshold (CIE200 score) to use for
+#' adjusting `colors`.
+#' Colors will be adjusted so the minimum pairwise difference
+#' is greater than this threshold.
+#' @param adjust Color property to adjust, a vector of multiple properties can
+#' also be provided, possible values include:
+#'   - "lightness"
+#'   - "a"
+#'   - "b"
+#'   - "hue"
+#'   - "saturation
 #' @param range A vector containing the minimum and maximum values to use when
 #' adjusting colors.
+#' @param filter Filter to apply to color palette when
+#' calculating pairwise differences.
+#' Colors will be adjusted to minimize the pairwise difference before and after
+#' applying the filter.
+#' A vector can be passed to adjust based on multiple color filters.
+#' Possible values include, "none", "deutan", "protan", and "tritan".
+#' @param adjust_colors Index indicating color(s) to specifically adjust.
+#' Should be an integer vector, or a character vector containing names matching
+#' those provided for `colors`.
+#' @param exclude_colors Index indicating color(s) to exclude when adjusting
+#' palette.
+#' Should be an integer vector, or a character vector containing names matching
+#' those provided for `colors`.
 #' @param maxit Maximum number of iterations to use when optimizing the color
 #' palette.
 #' Higher values will result in more optimal adjustments and a reduction in
 #' speed.
 #' @export
-spruce_up_colors <- function(colors, difference = 10, adjust = "lightness",
+spruce_up_colors <- function(colors, difference = 10, adjust = c("lightness", "hue"),
                              range = NULL, filter = NULL,
                              adjust_colors = NULL, exclude_colors = NULL,
                              maxit = 500) {
@@ -167,59 +266,177 @@ spruce_up_colors <- function(colors, difference = 10, adjust = "lightness",
   res
 }
 
-#' Automatically adjust color values
-#'
+#' @rdname scale_manual
 #' @export
-scale_color_spruce <- function(..., values, difference = 10, adjust = "lightness",
-                               filter = NULL, adjust_colors = NULL,
-                               range = NULL, maxit = 500,
+scale_color_spruce <- function(..., values, difference = 10, adjust = c("lightness", "hue"),
+                               range = NULL, filter = NULL,
+                               resize_palette = TRUE, adjust_colors = NULL,
+                               exclude_colors = NULL, maxit = 500,
                                aesthetics = "colour", breaks = ggplot2::waiver(),
                                na.value = "grey50") {
 
-  values <- spruce_up_colors(
-    colors        = values,
-    difference    = difference,
-    adjust        = adjust,
-    filter        = filter,
-    adjust_colors = adjust_colors,
-    range         = range,
-    maxit         = maxit
-  )
+  # spruce_up_colors() is called later when resizing palette
+  if (!resize_palette) {
+    values <- spruce_up_colors(
+      colors         = values,
+      difference     = difference,
+      adjust         = adjust,
+      range          = range,
+      filter         = filter,
+      adjust_colors  = adjust_colors,
+      exclude_colors = exclude_colors,
+      maxit          = maxit
+    )
+  }
 
-  ggplot2::scale_color_manual(
-    ...,
-    values     = values,
-    aesthetics = aesthetics,
-    breaks     = breaks,
-    na.value   = na.value
+  spruce_scale(
+    aesthetics, values, breaks, ...,
+    na.value = na.value,
+
+    difference     = difference,
+    adjust         = adjust,
+    range          = range,
+    filter         = filter,
+    resize_palette = resize_palette,
+    adjust_colors  = adjust_colors,
+    exclude_colors = exclude_colors,
+    maxit          = maxit
   )
 }
 
-#' Automatically adjust fill values
-#'
+#' @rdname scale_manual
 #' @export
-scale_fill_spruce <- function(..., values, difference = 10, adjust = "lightness",
-                              filter = NULL, adjust_colors = NULL,
-                              range = NULL, maxit = 500,
+scale_fill_spruce <- function(..., values, difference = 10, adjust = c("lightness", "hue"),
+                              range = NULL, filter = NULL,
+                              resize_palette = TRUE, adjust_colors = NULL,
+                              exclude_colors = NULL, maxit = 500,
                               aesthetics = "fill", breaks = ggplot2::waiver(),
                               na.value = "grey50") {
 
-  values <- spruce_up_colors(
-    colors        = values,
-    difference    = difference,
-    adjust        = adjust,
-    filter        = filter,
-    adjust_colors = adjust_colors,
-    range         = range,
-    maxit         = maxit
-  )
+  # spruce_up_colors() is called later when resizing palette
+  if (!resize_palette) {
+    values <- spruce_up_colors(
+      colors         = values,
+      difference     = difference,
+      adjust         = adjust,
+      range          = range,
+      filter         = filter,
+      adjust_colors  = adjust_colors,
+      exclude_colors = exclude_colors,
+      maxit          = maxit
+    )
+  }
 
-  ggplot2::scale_fill_manual(
-    ...,
-    values     = values,
-    aesthetics = aesthetics,
-    breaks     = breaks,
-    na.value   = na.value
+  spruce_scale(
+    aesthetics, values, breaks, ...,
+    na.value = na.value,
+
+    difference     = difference,
+    adjust         = adjust,
+    range          = range,
+    filter         = filter,
+    resize_palette = resize_palette,
+    adjust_colors  = adjust_colors,
+    exclude_colors = exclude_colors,
+    maxit          = maxit
+  )
+}
+
+#' Modification of ggplot2::manual_scale to allow automatic expansion of colors
+#'
+#' https://github.com/tidyverse/ggplot2/blob/57ba97fa04dadc6fd73db1904e39a09d57a4fcbe/R/scale-manual.R#L146
+#' @noRd
+spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
+                         name = ggplot2::waiver(), ...,
+                         limits = NULL, call = rlang::caller_call(),
+
+                         difference = 10, adjust = c("lightness", "hue"),
+                         range = NULL, filter = NULL,
+                         resize_palette = TRUE, adjust_colors = NULL,
+                         exclude_colors = NULL, maxit = 500
+                         ) {
+
+  # https://github.com/tidyverse/ggplot2/blob/57ba97fa04dadc6fd73db1904e39a09d57a4fcbe/R/utilities.R#L201
+  is.waive <- function(x) inherits(x, "waiver")
+
+  call <- call %||% rlang::current_call()
+
+  # check for missing `values` parameter, in lieu of providing
+  # a default to all the different scale_*_manual() functions
+  if (rlang::is_missing(values)) {
+    values <- NULL
+
+  } else {
+    force(values)
+  }
+
+  if (is.null(limits) && !is.null(names(values))) {
+
+    # Limits as function to access `values` names later on (#4619)
+    force(aesthetic)
+
+    limits <- function(x) {
+      x <- intersect(x, c(names(values), NA)) %||% character()
+
+      if (length(x) < 1) {
+        cli::cli_warn(paste0(
+          "No shared levels found between {.code names(values)} of the manual ",
+          "scale and the data's {.field {aesthetic}} values."
+        ))
+      }
+
+      x
+    }
+  }
+
+  # order values according to breaks
+  if (is.vector(values) && is.null(names(values)) && !is.waive(breaks) &&
+      !is.null(breaks) && !is.function(breaks)) {
+
+    if (length(breaks) <= length(values)) {
+      names(values) <- breaks
+
+    } else {
+      names(values) <- breaks[seq_along(values)]
+    }
+  }
+
+  # Adjust color palette provided by user
+  pal <- function(n) {
+    if (n > length(values)) {
+      if (!is.null(names(values)) || !resize_palette) {
+        cli::cli_abort(
+          "Insufficient values in manual scale.
+           {n} needed but only {length(values)} provided."
+        )
+      }
+
+      cli::cli_warn(
+        "Insufficient number of colors provided,
+         {n - length(values)} additional colors added,
+         set `resize_palette` to `FALSE` to modify this behavior."
+      )
+
+      values <- expand_colors(values, n)
+
+      values <- spruce_up_colors(
+        colors        = values,
+        difference    = difference,
+        adjust        = adjust,
+        filter        = filter,
+        adjust_colors = adjust_colors,
+        range         = range,
+        maxit         = maxit
+      )
+    }
+
+    values
+  }
+
+  ggplot2::discrete_scale(
+    aesthetic, name = name,
+    palette = pal, breaks = breaks, limits = limits,
+    call = call, ...
   )
 }
 
@@ -338,7 +555,7 @@ plot_colors <- function(colors, label_size = 14, label_color = "white", ...) {
 #' @param clr_filt Vector of color filters to apply when calculating color
 #' differences
 #' @param space Colorspace to use for decoding colors and adjusting color
-#' attributes, e.g. "lab" for lightness
+#' properties, e.g. "lab" for lightness
 #' @param val_idx Single numerical index indicating the column of the decoded
 #' color matrix containing the values to modify, e.g. 1 for lightness
 #' @param only_clr_idx When adjusting colors, only assess distance for colors
@@ -425,9 +642,11 @@ plot_colors <- function(colors, label_size = 14, label_color = "white", ...) {
 #'
 #' @param dist_lst List of distance matrices
 #' @noRd
-.get_min_dist <- function(dist_lst, clr_idx, only_clr_idx) {
+.get_min_dist <- function(dist_lst, clr_idx = NULL, only_clr_idx = FALSE) {
 
   if (only_clr_idx) {
+    if (is.null(clr_idx)) cli::cli_abort("`clr_idx` is required.")
+
     res <- purrr::map_dbl(dist_lst, ~ {
       .x[!upper.tri(.x)] <- NA
 
