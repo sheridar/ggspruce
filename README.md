@@ -63,14 +63,14 @@ plot_colors(new_clrs)
 
 <br>
 
-The colors can be made more distinct by modifying the hue instead of
-lightness and/or increasing the difference threshold.
+The colors can be made more distinct by also modifying the hue and/or
+increasing the difference threshold.
 
 ``` r
 new_clrs <- clrs |>
   spruce_up_colors(
-    difference = 15,
-    adjust     = "lightness"
+    difference = 20,
+    adjust     = c("lightness", "hue")
   )
 
 plot_colors(new_clrs)
@@ -80,9 +80,13 @@ plot_colors(new_clrs)
 
 <br>
 
+## Integration with ggplot2
+
 Color palettes can be automatically modified on the fly using the
-`scale_color_spruce()` and `scale_fill_spruce()` functions. Original
-colors are shown on the left and adjusted colors on the right.
+`scale_color_spruce()` and `scale_fill_spruce()` functions. These
+functions are similar to the `ggplot2::scale_*_manual()` functions with
+some modifications. Original colors are shown on the left and adjusted
+colors on the right.
 
 ``` r
 clrs <- as.character(met.brewer("Nattier", 8))
@@ -118,20 +122,41 @@ plot_grid(plt1, plt2, nrow = 1)
 
 <br>
 
+If no colors are provided to the `scale_*_spruce()` functions, they will
+pull colors from the existing color scale.
+
+``` r
+# Plot original palette
+plt1 <- plt +
+  scale_color_hue()
+
+# Adjust colors from existing scale
+plt2 <- plt +
+  scale_color_hue() +
+  scale_color_spruce(difference = 30)
+
+plot_grid(plt1, plt2, nrow = 1)
+```
+
+<img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
+
+<br>
+
 ## Colorblind filters
 
-Color similarity can be assessed using colorblind filter(s) and colors
-adjusted to increase perceived differences.
+Color similarity can be assessed and adjusted using colorblind filters.
+The original and adjusted palettes are shown below.
 
 ``` r
 library(colorspace)
+library(RColorBrewer)
 
-clrs <- as.character(met.brewer("Moreau", 10))
+clrs <- RColorBrewer::brewer.pal(10, "RdYlGn")
 
 new_clrs <- clrs |>
   spruce_up_colors(
-    difference = 16,
-    adjust     = "lightness",
+    difference = 15,
+    adjust     = c("lightness", "saturation"),
     filter     = "deutan"
   )
 
@@ -144,6 +169,14 @@ plt2 <- new_clrs |>
   plot_colors() +
   ggtitle("adjusted")
 
+plot_grid(plt1, plt2, ncol = 1)
+```
+
+<img src="man/figures/README-unnamed-chunk-7-1.png" width="100%" />
+
+The palettes are shown below using a filter to simulate deuteranopia.
+
+``` r
 # Plot adjusted colors with colorblind filter
 plt3 <- clrs |>
   deutan() |>
@@ -155,7 +188,7 @@ plt4 <- new_clrs |>
   plot_colors() +
   ggtitle("adjusted + filter")
   
-plot_grid(plt1, plt2, plt3, plt4, ncol = 1)
+plot_grid(plt3, plt4, ncol = 1)
 ```
 
-<img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-8-1.png" width="100%" />

@@ -80,17 +80,75 @@ collapse_colors <- function(colors, n, filter = NULL) {
   filter <- filter %||% "none"
   filter <- unique(c("none", filter))
 
-  .get_dist <- function(clrs) {
-    dst <- .compare_clrs(clrs, filt = filter)
-    dst <- .get_min_dist(dst)
+  # Use exhaustive approach for smaller number of possible combinations
+  dst <- .compare_clrs(colors, filt = filter)
 
-    dst
+  combns <- combn(seq_along(colors), m = n, simplify = FALSE)
+
+  exact <- length(combns) < 1e5
+
+  if (exact) {
+    res <- purrr::map_dbl(combns, ~ {
+      .get_min_dist(dst, .x, comparison = "idx_vs_idx")
+    })
+
+    res <- combns[[which.max(res)]]
+    res <- colors[res]
+
+    return(res)
   }
 
-  clrs <- combn(colors, m = n, simplify = FALSE)
-  dst  <- purrr::map_dbl(clrs, .get_dist)
+  # Use quick approximate approach for larger number of possible combinations
+  # get most distinct starting color
+  .get_most_distinct <- function(dist) {
+    res <- purrr::map_dbl(dist, ~ {
+      if (all(is.na(.x))) return(NA)
 
-  res <- clrs[[which.max(dst)]]
+      min(.x, na.rm = TRUE)
+    })
+
+    res
+  }
+
+  min_diff <- purrr::map_dfr(dst, ~ {
+    .x[!upper.tri(.x)] <- NA
+
+    .get_most_distinct(as.data.frame(.x))
+  })
+
+  min_diff <- .get_most_distinct(min_diff)
+  min_diff <- which.max(min_diff)
+
+  # Approximate best combination of colors
+  clrs <- farver::decode_colour(colors, to = "lab")
+
+  new_clrs      <- matrix(nrow = n, ncol = 3)
+  new_clrs[1, ] <- clrs[min_diff, ,  drop = FALSE]
+  clrs          <- clrs[-min_diff, , drop = FALSE]
+
+  if (n > 1) {
+    for (i in 2:n) {
+      clrs_dec     <- farver::encode_colour(clrs, from = "lab")
+      new_clrs_dec <- farver::encode_colour(new_clrs, from = "lab")
+
+      new_clrs_dec <- stats::na.omit(new_clrs_dec)
+
+      # .compare_clrs returns a list of distance matrices, one for each filter
+      dst <- .compare_clrs(new_clrs_dec, clrs_dec, filt = filter)
+
+      min_diff <- purrr::map_dfr(dst, ~ purrr::map_dbl(as.data.frame(.x), min))
+      min_diff <- purrr::map_dbl(min_diff, min)
+
+      min_diff <- which.max(min_diff)
+
+      new_clrs[i, ] <- clrs[min_diff, ,  drop = FALSE]
+      clrs          <- clrs[-min_diff, , drop = FALSE]
+    }
+  }
+
+  # Return selected colors in same order as input colors
+  res <- farver::encode_colour(new_clrs, from = "lab")
+  res <- res[na.omit(match(colors, res))]
 
   res
 }
