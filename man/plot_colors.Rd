@@ -13,7 +13,7 @@ plot_colors(colors, label_size = 14, label_color = "white", ...)
 
 \item{label_color}{Color of labels}
 
-\item{...}{Additional arguments to pass to `ggplot2::geom_bar`}
+\item{...}{Additional arguments to pass to `ggplot2::geom_bar()`}
 }
 \description{
 Plot color palette

@@ -4,19 +4,17 @@
 \alias{resize_palette}
 \title{Resize color palette}
 \usage{
-resize_palette(colors, n, filter = NULL, ...)
+resize_palette(colors, n, order = TRUE, ...)
 }
 \arguments{
 \item{colors}{Vector of colors}
 
 \item{n}{Number of colors to include in final color palette}
 
-\item{filter}{Filter to apply to color palette when
-calculating pairwise differences.
-A vector can be passed to adjust based on multiple color filters.
-Possible values include, "none", "deutan", "protan", and "tritan".}
+\item{order}{If `TRUE`, when colors are expanded new colors are interspersed,
+if `FALSE`, new colors are added to the end.}
 
-\item{...}{Additional arguments to pass to `grDevices::colorRamp()`}
+\item{...}{Additional arguments to pass to `collapse_colors()`}
 }
 \description{
 Reduce or expand the number of colors in palette

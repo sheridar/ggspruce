@@ -4,7 +4,7 @@
 \alias{collapse_colors}
 \title{Collapse color palette}
 \usage{
-collapse_colors(colors, n, filter = NULL)
+collapse_colors(colors, n, filter = NULL, exact = NULL, ...)
 }
 \arguments{
 \item{colors}{Vector of colors}
@@ -15,6 +15,19 @@ collapse_colors(colors, n, filter = NULL)
 calculating pairwise differences.
 A vector can be passed to adjust based on multiple color filters.
 Possible values include, "none", "deutan", "protan", and "tritan".}
+
+\item{exact}{When `FALSE` the most distinct colors will be determined using
+a simulated annealing approach.
+This provides an approximate solution but is quick and generally performs
+well.
+When `TRUE` all possible solutions will be checked to identify
+an exact solution. This will be slow when there is a large number of possible
+solutions.
+If `NULL` the approximate approach will be used except when the number of
+possible solutions is relatively small.}
+
+\item{...}{Additional parameters to control the simulated annealing
+algorithm implemented with `GenSA::GenSA()`.}
 }
 \description{
 Reduce the number of colors in palette by selecting the colors that

@@ -4,20 +4,23 @@
 \alias{assign_colors}
 \title{Assign colors to provided names}
 \usage{
-assign_colors(colors, names, filter = NULL, ...)
+assign_colors(colors, names, select_best = TRUE, order = TRUE, ...)
 }
 \arguments{
 \item{colors}{Vector of colors}
 
 \item{names}{Vector of names}
 
-\item{filter}{Filter to apply to color palette when
-calculating pairwise differences.
-A vector can be passed to adjust based on multiple color filters.
-Possible values include, "none", "deutan", "protan", and "tritan".}
+\item{select_best}{Select the most distinct colors when collapsing the
+palette.
+If `FALSE` colors will be selected starting with the first.}
 
-\item{...}{Additional arguments to pass to `grDevices::colorRamp()`}
+\item{order}{If `TRUE`, when colors are expanded new colors are interspersed.
+If `FALSE` new colors are added to the end.}
+
+\item{...}{Additional arguments to pass to `resize_palette()`}
 }
 \description{
-Reduce or expand color palette and assign names
+The color palette will be resized to accommodate the number of provided
+names.
 }

@@ -2,15 +2,23 @@
 % Please edit documentation in R/resize-palette.R
 \name{expand_colors}
 \alias{expand_colors}
-\title{Expand color palette}
+\title{Create nested color palette}
 \usage{
-expand_colors(colors, n, ...)
+expand_colors(colors, n_expand, keep_original = FALSE, ...)
 }
 \arguments{
-\item{colors}{Vector of colors}
+\item{colors}{Vector of starting colors}
 
-\item{n}{Number of colors to include in final color palette}
+\item{n_expand}{Vector the same length as `colors` indicating the number
+of expanded colors to generate for each starting color.
+Alternatively, a list of vectors the same length as `colors` can be provided.
+Each vector should contain names to assign to the expanded colors.}
+
+\item{keep_original}{If `TRUE` original colors will be included in final
+palette}
+
+\item{...}{Additional arguments to pass to `spruce_up_colors()`.}
 }
 \description{
-Add additional colors to color palette
+Create nested color palette
 }

@@ -39,7 +39,7 @@ calculating pairwise differences.
 Colors will be adjusted to minimize the pairwise difference before and after
 applying the filter.
 A vector can be passed to adjust based on multiple color filters.
-Possible values include, "none", "deutan", "protan", and "tritan".}
+Possible values include, "deutan", "protan", and "tritan".}
 
 \item{adjust_colors}{Index indicating color(s) to specifically adjust.
 Should be an integer vector, or a character vector containing names matching

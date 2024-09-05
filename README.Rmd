@@ -11,7 +11,8 @@ knitr::opts_chunk$set(
   fig.path   = "man/figures/README-",
   fig.width  = 8,
   fig.height = 1.2,
-  out.width  = "100%"
+  out.width  = "100%",
+  dpi        = 600
 )
 ```
 
@@ -193,3 +194,32 @@ plt4 <- new_clrs |>
 plot_grid(plt3, plt4, ncol = 1)
 ```
 
+```{r "TEST RESIZE PALETTE", eval = FALSE, include = FALSE, echo = FALSE}
+test_clrs <- clrs[1:20]
+n <- 10
+
+# NEW GENSA
+test_clrs |>
+  collapse_colors(n = n, exact = FALSE) |>
+  plot_colors()
+
+test_clrs |>
+  spruce_up_colors() |>
+  plot_colors()
+
+collapse_colors(test_clrs, n = n, exact = TRUE)
+
+# OLD
+res <- test_clrs |>
+  collapse_colors(n = n, exact = TRUE)
+
+res |>
+  plot_colors()
+
+x <- res |>
+  farver::decode_colour(res, to = "lab") |>
+  farver::compare_colour(from_space = "lab", method = "CIE2000")
+
+min(x[upper.tri(x)])
+
+```
