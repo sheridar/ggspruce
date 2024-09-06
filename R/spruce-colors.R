@@ -67,17 +67,14 @@ spruce_up_colors <- function(colors, difference = 10, adjust = c("lightness", "h
     clr_idx <- purrr::map(clr_filts, ~ {
       d <- .compare_clrs(colors, filt = .x)[[1]]
 
-      # Exclude ex_idx before identifying most similar pairs
-      # * extra colors could be excluded if this is done after
-      d[ex_idx, ex_idx] <- NA
-
       # Check if all colors are identical
       if (all(d == 0)) return(seq_along(colors))
 
       # Identify pairs of colors that are similar
       idx <- which(d < difference & upper.tri(d), arr.ind = TRUE)
+      idx <- idx[!idx %in% ex_idx]
 
-      unique(idx[, 1])
+      unique(idx)
     })
 
     clr_idx <- purrr::reduce(clr_idx, unique)
