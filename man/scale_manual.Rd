@@ -10,7 +10,7 @@ scale_colour_spruce(
   ...,
   values = NULL,
   difference = 10,
-  adjust = c("lightness", "hue"),
+  property = c("lightness", "hue"),
   range = NULL,
   filter = NULL,
   resize_palette = TRUE,
@@ -26,7 +26,7 @@ scale_fill_spruce(
   ...,
   values = NULL,
   difference = 10,
-  adjust = c("lightness", "hue"),
+  property = c("lightness", "hue"),
   range = NULL,
   filter = NULL,
   resize_palette = TRUE,
@@ -90,13 +90,15 @@ adjusting `colors`.
 Colors will be adjusted so the minimum pairwise difference
 is greater than this threshold.}
 
-\item{adjust}{Color property to adjust, a vector of multiple properties can
-also be provided, possible values include:
--  "lightness"
--  "a"
--  "b"
--  "hue"
--  "saturation}
+\item{property}{Vector of color properties to adjust, can include any of:
+- "lightness", from LAB colorspace
+- "a", from LAB colorspace
+- "b", from LAB colorspace
+- "hue", from HSL colorspace
+- "saturation", from HSL colorspace
+- "red", from RGB colorspace
+- "green", from RGB colorspace
+- "blue", from RGB colorspace}
 
 \item{range}{A vector containing the minimum and maximum values to use when
 adjusting the specified color property.}

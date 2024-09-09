@@ -7,12 +7,13 @@
 spruce_up_colors(
   colors,
   difference = 10,
-  adjust = c("lightness", "hue"),
+  property = c("lightness", "hue"),
   range = NULL,
   filter = NULL,
   adjust_colors = NULL,
   exclude_colors = NULL,
-  maxit = 500
+  maxit = 500,
+  ...
 )
 }
 \arguments{
@@ -23,16 +24,20 @@ adjusting `colors`.
 Colors will be adjusted so the minimum pairwise difference
 is greater than this threshold.}
 
-\item{adjust}{Color property to adjust, a vector of multiple properties can
-also be provided, possible values include:
-  - "lightness"
-  - "a"
-  - "b"
-  - "hue"
-  - "saturation}
+\item{property}{Vector of color properties to adjust, can include any of:
+- "lightness", from LAB colorspace
+- "a", from LAB colorspace
+- "b", from LAB colorspace
+- "hue", from HSL colorspace
+- "saturation", from HSL colorspace
+- "red", from RGB colorspace
+- "green", from RGB colorspace
+- "blue", from RGB colorspace}
 
 \item{range}{A vector containing the minimum and maximum values to use when
-adjusting colors.}
+adjusting colors.
+If multiple color properties will be adjusted, provide a list with ranges
+for each property.}
 
 \item{filter}{Filter to apply to color palette when
 calculating pairwise differences.
@@ -54,6 +59,8 @@ those provided for `colors`.}
 palette.
 Higher values will result in more optimal adjustments and a reduction in
 speed.}
+
+\item{...}{Additional control parameters to pass to `GenSA::GenSA()`.}
 }
 \description{
 Adjust colors based on similarity

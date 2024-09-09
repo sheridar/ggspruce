@@ -5,15 +5,19 @@
 #' adjusting `colors`.
 #' Colors will be adjusted so the minimum pairwise difference
 #' is greater than this threshold.
-#' @param adjust Color property to adjust, a vector of multiple properties can
-#' also be provided, possible values include:
-#'   - "lightness"
-#'   - "a"
-#'   - "b"
-#'   - "hue"
-#'   - "saturation
+#' @param property Vector of color properties to adjust, can include any of:
+#' - "lightness", from LAB colorspace
+#' - "a", from LAB colorspace
+#' - "b", from LAB colorspace
+#' - "hue", from HSL colorspace
+#' - "saturation", from HSL colorspace
+#' - "red", from RGB colorspace
+#' - "green", from RGB colorspace
+#' - "blue", from RGB colorspace
 #' @param range A vector containing the minimum and maximum values to use when
 #' adjusting colors.
+#' If multiple color properties will be adjusted, provide a list with ranges
+#' for each property.
 #' @param filter Filter to apply to color palette when
 #' calculating pairwise differences.
 #' Colors will be adjusted to minimize the pairwise difference before and after
@@ -31,24 +35,23 @@
 #' palette.
 #' Higher values will result in more optimal adjustments and a reduction in
 #' speed.
+#' @param ... Additional control parameters to pass to `GenSA::GenSA()`.
 #' @export
-spruce_up_colors <- function(colors, difference = 10, adjust = c("lightness", "hue"),
-                             range = NULL, filter = NULL,
-                             adjust_colors = NULL, exclude_colors = NULL,
-                             maxit = 500) {
+spruce_up_colors <- function(colors, difference = 10,
+                             property = c("lightness", "hue"), range = NULL,
+                             filter = NULL, adjust_colors = NULL,
+                             exclude_colors = NULL, maxit = 500, ...) {
 
-  adj_params <- list(
-    lightness  = list("lab", 1, c(3, 85)),
-    a          = list("lab", 2, c(-128, 127)),
-    b          = list("lab", 3, c(-128, 127)),
-    hue        = list("hsl", 1, c(0, 360)),
-    saturation = list("hsl", 2, c(0, 100))
-  )
-
-  adj_params <- adj_params[adjust]
+  adj_params <- SPACE_PARAMS[property]
 
   if (!is.null(range)) {
-    adj_params[[adjust[1]]][[3]] <- range
+    if (is.vector(range)) range <- list(range)
+
+    for (i in seq_along(adj_params)) {
+      if (i > length(range)) break()
+
+      adj_params[[i]][[3]] <- range[[i]]
+    }
   }
 
   # Set color filters to test
@@ -56,7 +59,15 @@ spruce_up_colors <- function(colors, difference = 10, adjust = c("lightness", "h
   clr_filts <- unique(c("none", filter))
   clr_filts <- purrr::set_names(clr_filts)
 
-  # Identify colors to adjust
+  # Identify initial colors to adjust
+  # * for initial attempt optimization is based on comparison between the index
+  #   colors and the unadjusted colors
+  # * the difference between unadjusted colors is not considered by the
+  #   objective function
+  # * so the min_diff returned by the objective function might differ from the
+  #   minimum difference calculated for the entire palette by compare_colors()
+  # * this is okay since the unadjusted colors have already been identified as
+  #   meeting the difference threshold
   ex_idx <- .get_clr_idx(colors, exclude_colors)
 
   if (!is.null(adjust_colors)) {
@@ -83,13 +94,20 @@ spruce_up_colors <- function(colors, difference = 10, adjust = c("lightness", "h
   }
 
   # Optimize colors
+  sa_params <- list(
+    maxit = maxit,
+    threshold.stop = -difference,
+    ...
+  )
+
+  sa_params$seed <- sa_params$seed %||% 42
+
   optim_res <- .run_gensa(
-    clrs       = colors,
-    clr_idx    = clr_idx,
-    adj_params = adj_params,
-    filts      = clr_filts,
-    threshold  = -difference,
-    maxit      = maxit
+    clrs         = colors,
+    clr_idx      = clr_idx,
+    adj_params   = adj_params,
+    filts        = clr_filts,
+    gensa_params = sa_params
   )
 
   res      <- optim_res[[1]]
@@ -104,12 +122,11 @@ spruce_up_colors <- function(colors, difference = 10, adjust = c("lightness", "h
     full_idx  <- full_idx[!full_idx %in% ex_idx]
 
     full_res <- .run_gensa(
-      clrs       = res,
-      clr_idx    = full_idx,  # update to adjust all colors
-      adj_params = adj_params,
-      filts      = clr_filts,
-      threshold  = -difference,
-      maxit      = maxit
+      clrs         = res,
+      clr_idx      = full_idx,  # update to adjust all colors
+      adj_params   = adj_params,
+      filts        = clr_filts,
+      gensa_params = sa_params
     )
 
     full_diff <- full_res[[2]]
@@ -122,12 +139,58 @@ spruce_up_colors <- function(colors, difference = 10, adjust = c("lightness", "h
 
   if (min_diff < difference) {
     cli::cli_warn(
-      "The minimum color difference for the adjusted color palette is {round(min_diff, 1)},
-       increase `maxit` to improve optimization."
+      "The minimum color difference for the adjusted palette
+       is {round(min_diff, 1)}, increase `maxit` to improve optimization."
     )
   }
 
   # Return optimized colors
+  res
+}
+
+SPACE_PARAMS <- list(
+  lightness  = list("lab", 1, c(3, 85)),
+  a          = list("lab", 2, c(-128, 127)),
+  b          = list("lab", 3, c(-128, 127)),
+  hue        = list("hsl", 1, c(0, 360)),
+  saturation = list("hsl", 2, c(0, 100)),
+  red        = list("rgb", 1, c(0, 255)),
+  green      = list("rgb", 2, c(0, 255)),
+  blue       = list("rgb", 3, c(0, 255))
+)
+
+#' Get color property
+#'
+#' @param colors Character vector of colors
+#' @param property Vector of color properties to return, can include any of:
+#' - "lightness", from LAB colorspace
+#' - "a", from LAB colorspace
+#' - "b", from LAB colorspace
+#' - "hue", from HSL colorspace
+#' - "saturation", from HSL colorspace
+#' - "red", from RGB colorspace
+#' - "green", from RGB colorspace
+#' - "blue", from RGB colorspace
+#' @export
+get_property <- function(colors, property) {
+
+  params <- SPACE_PARAMS[property]
+
+  props <- purrr::imap(params, ~ {
+    p <- farver::decode_colour(colors, to = .x[[1]])
+
+    p[, .x[[2]]]
+  })
+
+  res <- tibble::as_tibble(props)
+
+  res <- tibble::add_column(
+    res,
+    names   = names(colors),
+    color   = colors,
+    .before = 1
+  )
+
   res
 }
 
@@ -207,37 +270,24 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
 #' Each vector must include in this order, the colorspace, numeric index for
 #' column containing the color property to adjust, range of values to adjust.
 #' @param filts Color filters to apply when calculating color differences.
-#' @param threshold Threshold at which optimization should stop.
-#' @param maxit Maximum number of iterations of GenSA.
-#' @param comparison How should colors provided in `clr_idx` be compared when
-#' identifying minimum color differences, one of:
-#' - "all_vs_all", select minimum distance using all comparisons.
-#' - "idx_vs_all", select minimum distance for colors in `clr_idx` when compared
-#'   to all other colors
-#' - "idx_vs_idx", select minimum distance for colors in `clr_idx` when compared
-#'   to all other colors in `clr_idx`
+#' @param gensa_params Named list with control parameters to pass to
+#' `GenSA::GenSA()`
 #' @noRd
 .run_gensa <- function(clrs, clr_idx, adj_params, filts = "none",
-                       threshold, maxit, comparison = "idx_vs_all") {
-
-  sa_params <- list(
-    maxit          = maxit,
-    threshold.stop = threshold,
-    seed           = 42
-  )
+                       gensa_params = list()) {
 
   .gensa <- function(clrs, clr_idx, space, val_idx, range) {
-    dec_clrs     <- farver::decode_colour(clrs, to = space)
-    init_vals    <- dec_clrs[clr_idx, val_idx]
-    lower_bounds <- rep(range[1], length(init_vals))
-    upper_bounds <- rep(range[2], length(init_vals))
+    dec_clrs  <- farver::decode_colour(clrs, to = space)
+    init_vals <- dec_clrs[clr_idx, val_idx]
+
+    range <- .parse_range(range, clrs, clr_idx)
 
     res <- GenSA::GenSA(
-      par     = init_vals,
+      par     = as.numeric(init_vals),
       fn      = .sa_obj_fn,
-      lower   = lower_bounds,
-      upper   = upper_bounds,
-      control = sa_params,
+      lower   = range[[1]],
+      upper   = range[[2]],
+      control = gensa_params,
 
       clrs     = clrs,
       clr_idx  = clr_idx,
@@ -267,11 +317,49 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
       clrs <- farver::encode_colour(dec_clrs, from = params[[1]])
     }
 
-    if (min_diff > -threshold) break()
+    if (min_diff > -gensa_params$threshold.stop) break()
   }
 
   # Return vector of hex colors and minimum difference
   list(clrs, min_diff)
+}
+
+.parse_range <- function(range, colors, idx) {
+
+  if (is.list(range)) {
+    res <- purrr::map(range, ~ {
+      if (length(.x) != length(colors)) {
+        cli::cli_abort(
+          "If a list of vectors is provided for `range`,
+           each vector must be the same length as `colors`."
+        )
+      }
+
+      .x[idx]
+    })
+
+  } else {
+    if (length(range) != 2) {
+      cli::cli_abort(
+        "If a single vector is provided for `range`,
+         it should include two values, the lower and upper bounds."
+      )
+    }
+
+    if (range[1] >= range[2]) {
+      cli::cli_abort(
+        "The lower bound must be smaller than the upper bound."
+      )
+    }
+
+    # For GenSA make sure final values are not integers
+    res <- list(
+      rep(as.numeric(range[1]), length(idx)),
+      rep(as.numeric(range[2]), length(idx))
+    )
+  }
+
+  res
 }
 
 #' Objective function for optimizing colors
@@ -285,13 +373,6 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
 #' properties, e.g. "lab" for lightness
 #' @param val_idx Single numerical index indicating the column of the decoded
 #' color matrix containing the values to modify, e.g. 1 for lightness
-#' @param comparison How should colors provided in `clr_idx` be compared when
-#' identifying minimum color differences, one of:
-#' - "all_vs_all", select minimum distance using all comparisons.
-#' - "idx_vs_all", select minimum distance for colors in `clr_idx` when compared
-#'   to all other colors
-#' - "idx_vs_idx", select minimum distance for colors in `clr_idx` when compared
-#'   to all other colors in `clr_idx`
 #' @noRd
 .sa_obj_fn <- function(values, clrs, clr_idx, clr_filt = "none",
                        space = "lab", val_idx = 1) {

@@ -53,7 +53,7 @@ of colors that do not meet the difference threshold.
 new_clrs <- clrs |>
   spruce_up_colors(
     difference = 10,
-    adjust     = "lightness"
+    property   = "lightness"
   )
 
 plot_colors(new_clrs)
@@ -70,7 +70,7 @@ increasing the difference threshold.
 new_clrs <- clrs |>
   spruce_up_colors(
     difference = 20,
-    adjust     = c("lightness", "hue")
+    property   = c("lightness", "hue")
   )
 
 plot_colors(new_clrs)
@@ -111,7 +111,7 @@ plt2 <- plt +
   scale_color_spruce(
     values     = clrs,
     difference = 25,
-    adjust     = "lightness"
+    property   = "lightness"
   ) +
   ggtitle("adjusted")
 
@@ -156,9 +156,11 @@ clrs <- RColorBrewer::brewer.pal(10, "RdYlGn")
 new_clrs <- clrs |>
   spruce_up_colors(
     difference = 15,
-    adjust     = c("lightness", "saturation"),
+    property   = c("lightness", "saturation"),
     filter     = "deutan"
   )
+#> Warning: The minimum color difference for the adjusted palette is 14.3, increase `maxit`
+#> to improve optimization.
 
 # Plot adjusted colors without filter
 plt1 <- clrs |>

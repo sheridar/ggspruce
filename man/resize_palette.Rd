@@ -14,7 +14,8 @@ resize_palette(colors, n, order = TRUE, ...)
 \item{order}{If `TRUE`, when colors are expanded new colors are interspersed,
 if `FALSE`, new colors are added to the end.}
 
-\item{...}{Additional arguments to pass to `collapse_colors()`}
+\item{...}{Additional arguments to pass to `collapse_colors()` or
+`ramp_colors()`}
 }
 \description{
 Reduce or expand the number of colors in palette

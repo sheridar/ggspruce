@@ -14,9 +14,10 @@ Imports:
     colorspace,
     farver,
     GenSA,
-    ggplot2,
+    ggplot2 (>= 3.5.0),
     purrr,
-    rlang
+    rlang,
+    tibble
 Suggests: 
     cowplot,
     knitr,

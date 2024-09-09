@@ -26,14 +26,15 @@
 #' adjusting `colors`.
 #' Colors will be adjusted so the minimum pairwise difference
 #' is greater than this threshold.
-#' @param adjust Color property to adjust, a vector of multiple properties can
-#' also be provided, possible values include:
-#' -  "lightness"
-#' -  "a"
-#' -  "b"
-#' -  "hue"
-#' -  "saturation
-#'
+#' @param property Vector of color properties to adjust, can include any of:
+#' - "lightness", from LAB colorspace
+#' - "a", from LAB colorspace
+#' - "b", from LAB colorspace
+#' - "hue", from HSL colorspace
+#' - "saturation", from HSL colorspace
+#' - "red", from RGB colorspace
+#' - "green", from RGB colorspace
+#' - "blue", from RGB colorspace
 #' @param range A vector containing the minimum and maximum values to use when
 #' adjusting the specified color property.
 #' @param filter Filter to apply to color palette when
@@ -90,7 +91,7 @@ NULL
 #' @rdname scale_manual
 #' @export
 scale_colour_spruce <- function(..., values = NULL, difference = 10,
-                                adjust = c("lightness", "hue"),
+                                property = c("lightness", "hue"),
                                 range = NULL, filter = NULL,
                                 resize_palette = TRUE, adjust_colors = NULL,
                                 exclude_colors = NULL, maxit = 500,
@@ -102,7 +103,7 @@ scale_colour_spruce <- function(..., values = NULL, difference = 10,
     values <- spruce_up_colors(
       colors         = values,
       difference     = difference,
-      adjust         = adjust,
+      property       = property,
       range          = range,
       filter         = filter,
       adjust_colors  = adjust_colors,
@@ -116,7 +117,7 @@ scale_colour_spruce <- function(..., values = NULL, difference = 10,
     na.value = na.value,
 
     difference     = difference,
-    adjust         = adjust,
+    property       = property,
     range          = range,
     filter         = filter,
     resize_palette = resize_palette,
@@ -134,7 +135,7 @@ scale_color_spruce <- scale_colour_spruce
 #' @rdname scale_manual
 #' @export
 scale_fill_spruce <- function(..., values = NULL, difference = 10,
-                              adjust = c("lightness", "hue"),
+                              property = c("lightness", "hue"),
                               range = NULL, filter = NULL,
                               resize_palette = TRUE, adjust_colors = NULL,
                               exclude_colors = NULL, maxit = 500,
@@ -146,7 +147,7 @@ scale_fill_spruce <- function(..., values = NULL, difference = 10,
     values <- spruce_up_colors(
       colors         = values,
       difference     = difference,
-      adjust         = adjust,
+      property       = property,
       range          = range,
       filter         = filter,
       adjust_colors  = adjust_colors,
@@ -160,7 +161,7 @@ scale_fill_spruce <- function(..., values = NULL, difference = 10,
     na.value = na.value,
 
     difference     = difference,
-    adjust         = adjust,
+    property       = property,
     range          = range,
     filter         = filter,
     resize_palette = resize_palette,
@@ -178,7 +179,7 @@ spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
                          name = ggplot2::waiver(), ...,
                          limits = NULL, call = rlang::caller_call(),
 
-                         difference = 10, adjust = c("lightness", "hue"),
+                         difference = 10, property = c("lightness", "hue"),
                          range = NULL, filter = NULL,
                          resize_palette = TRUE, adjust_colors = NULL,
                          exclude_colors = NULL, maxit = 500) {
@@ -272,7 +273,7 @@ spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
       clrs <- spruce_up_colors(
         colors         = clrs,
         difference     = difference,
-        adjust         = adjust,
+        property       = property,
         range          = range,
         filter         = filter,
         adjust_colors  = adjust_colors,
