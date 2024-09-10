@@ -2,9 +2,9 @@
 % Please edit documentation in R/resize-palette.R
 \name{ramp_colors}
 \alias{ramp_colors}
-\title{Interpolate colors}
+\title{Ramp colors}
 \usage{
-ramp_colors(colors, n, keep_original = TRUE, order = TRUE, method = "linear")
+ramp_colors(colors, n, keep_original = TRUE, order = TRUE, ...)
 }
 \arguments{
 \item{colors}{Vector of colors}
@@ -17,11 +17,10 @@ palette}
 \item{order}{If `TRUE` colors are ordered with new colors interspersed,
 if `FALSE` new colors are added to the end.}
 
-\item{method}{Method to use when interpolating colors, can be "linear" or
-"spline".}
+\item{...}{Additional arguments to pass to `grDevices::colorRamp()`}
 }
 \description{
 Insert additional colors into palette, this behaves similar to
-`grDevices::colorRampPalette()`, but will keep the original colors in the
+`grDevices::colorRampPalette()`, but keeps all of the original colors in the
 final palette.
 }

@@ -25,10 +25,10 @@ resize_palette <- function(colors, n, order = TRUE, ...) {
   res
 }
 
-#' Interpolate colors
+#' Ramp colors
 #'
 #' Insert additional colors into palette, this behaves similar to
-#' `grDevices::colorRampPalette()`, but will keep the original colors in the
+#' `grDevices::colorRampPalette()`, but keeps all of the original colors in the
 #' final palette.
 #'
 #' @param colors Vector of colors
@@ -37,13 +37,9 @@ resize_palette <- function(colors, n, order = TRUE, ...) {
 #' palette
 #' @param order If `TRUE` colors are ordered with new colors interspersed,
 #' if `FALSE` new colors are added to the end.
-#' @param method Method to use when interpolating colors, can be "linear" or
-#' "spline".
+#' @param ... Additional arguments to pass to `grDevices::colorRamp()`
 #' @export
-ramp_colors <- function(colors, n, keep_original = TRUE, order = TRUE,
-                        method = "linear") {
-
-  property = c("red", "green", "blue")
+ramp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
 
   # Calculate x for interpolation while preserving original colors
   # * for interpolation x is the position of the color in the palette and y
@@ -75,46 +71,30 @@ ramp_colors <- function(colors, n, keep_original = TRUE, order = TRUE,
     new_x <- sort(c(x, new_x))
   }
 
-  # Generate functions to interpolate values
-  method <- switch(
-    method,
-    linear = stats::approxfun,
-    spline = stats::splinefun
-  )
+  # Get colorRamp function
+  # * this creates a function that can interpolate new colors using the original
+  #   palette
+  ramp <- grDevices::colorRamp(colors, ...)
 
-  if (clrs_n == 1) {
-    dec_clrs <- dec_clrs[c(1, 1), ]
-    clrs_n   <- 2
+  # Generate expanded color palette using the x values
+  new_clrs <- ramp(new_x)
+
+  # Convert new colors to hex codes
+  if (ncol(new_clrs) == 4L) {
+    res <- grDevices::rgb(
+      new_clrs[, 1L], new_clrs[, 2L],
+      new_clrs[, 3L], new_clrs[, 4L],
+      maxColorValue = 255
+    )
+
+  } else {
+    res <- grDevices::rgb(
+      new_clrs[, 1L], new_clrs[, 2L], new_clrs[, 3L],
+      maxColorValue = 255
+    )
   }
 
-  dec_clrs <- get_property(colors, property)
-  property <- purrr::set_names(property)
-
-  palette <- purrr::map(property, ~ method(x, dec_clrs[, .x][[1]]))
-
-  # Generate new color values using x values
-  new_vals <- purrr::map(palette, ~ .x(new_x))
-
-  # Generate new colors
-  # * use last color once
-  res <- new_x[-length(new_x)]
-  res <- split(res, cut(res, x, include.lowest = TRUE))
-  res <- purrr::map_dbl(res, length)
-  res <- unname(c(res, 1))
-  res <- purrr::map2(colors, res, ~ rep(.x, .y))
-  res <- c(res, recursive = TRUE)
-
-  for (prop in property) {
-    prop_params <- SPACE_PARAMS[[prop]]
-
-    dec <- farver::decode_colour(res, to = prop_params[[1]])
-
-    dec[, prop_params[[2]]] <- new_vals[[prop]]
-
-    res <- farver::encode_colour(dec, from = prop_params[[1]])
-  }
-
-  if (!order) {
+  if (keep_original && !order) {
     res <- c(res[res %in% colors], res[!res %in% colors])
   }
 
@@ -223,13 +203,14 @@ collapse_colors <- function(colors, n, filter = NULL, exact = NULL, ...) {
 #' Create nested color palette
 #'
 #' @param colors Vector of starting colors
-#' @param n The number of expanded colors to generated for each starting colors,
+#' @param n The number of expanded colors to generate for each starting color,
 #' can be one of the following:
 #' - A single integer
-#' - Vector the same length as `colors` indicating the number
+#' - A vector the same length as `colors` indicating the number
 #'   of expanded colors to generate for each starting color
-#' - A list of vectors the same length as `colors`, with each vector containing
-#'   names to assign to the expanded colors.
+#' @param names A list of vectors the same length as `colors`,
+#' with each vector containing names to assign to the expanded colors.
+#' Each original color is expanded based on the number of provided names.
 #' @param keep_original If `TRUE` original colors will be included in final
 #' palette
 #' @param property Color property to adjust when expanding colors.
@@ -240,7 +221,7 @@ collapse_colors <- function(colors, n, filter = NULL, exact = NULL, ...) {
 #' adjusting colors.
 #' @param ... Additional arguments to pass to `spruce_up_colors()`.
 #' @export
-expand_colors <- function(colors, n, keep_original = FALSE,
+expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
                           property = "lightness", direction = NULL,
                           range = NULL, ...) {
 
@@ -248,15 +229,17 @@ expand_colors <- function(colors, n, keep_original = FALSE,
     cli::cli_abort("`property` must be length 1.")
   }
 
+  if (is.null(n) && is.null(names)) return(colors)
+
   range <- range %||% SPACE_PARAMS[[property]][[3]]
 
   # Expand colors based on n
   nms <- NULL
 
-  if (is.list(n)) {
-    nms <- c(n, recursive = TRUE)
+  if (!is.null(names)) {
+    nms <- c(names, recursive = TRUE)
 
-    n <- purrr::map_dbl(n, length)
+    n <- purrr::map_dbl(names, length)
 
   } else if (length(n) == 1) {
     n <- rep(n, length(colors))
@@ -372,6 +355,21 @@ assign_colors <- function(colors, names, select_best = TRUE,
   clrs <- resize_palette(colors, n, order = order, ...)
 
   res  <- purrr::set_names(clrs, names)
+
+  res
+}
+
+#' Sort colors based on property
+#'
+#' @param colors Vector of colors
+#' @param property Color properties to use for sorting
+#' @param desc Sort in descending order
+#' @export
+sort_colors <- function(colors, property = "hue", desc = FALSE) {
+  prop <- get_property(colors, property)
+  vals <- as.list(prop[property])
+  idx  <- .lift(order, decreasing = desc)(vals)
+  res  <- prop$color[idx]
 
   res
 }

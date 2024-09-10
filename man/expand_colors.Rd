@@ -6,7 +6,8 @@
 \usage{
 expand_colors(
   colors,
-  n,
+  n = NULL,
+  names = NULL,
   keep_original = FALSE,
   property = "lightness",
   direction = NULL,
@@ -17,13 +18,15 @@ expand_colors(
 \arguments{
 \item{colors}{Vector of starting colors}
 
-\item{n}{The number of expanded colors to generated for each starting colors,
+\item{n}{The number of expanded colors to generate for each starting color,
 can be one of the following:
 - A single integer
-- Vector the same length as `colors` indicating the number
-  of expanded colors to generate for each starting color
-- A list of vectors the same length as `colors`, with each vector containing
-  names to assign to the expanded colors.}
+- A vector the same length as `colors` indicating the number
+  of expanded colors to generate for each starting color}
+
+\item{names}{A list of vectors the same length as `colors`,
+with each vector containing names to assign to the expanded colors.
+Each original color is expanded based on the number of provided names.}
 
 \item{keep_original}{If `TRUE` original colors will be included in final
 palette}
