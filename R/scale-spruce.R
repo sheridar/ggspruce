@@ -43,6 +43,11 @@
 #' applying the filter.
 #' A vector can be passed to adjust based on multiple color filters.
 #' Possible values include, "none", "deutan", "protan", and "tritan".
+#' @param resize_palette Should provided color palette be resized based on the
+#' number of groups plotted.
+#' If `TRUE`, when too few or too many colors are provided,
+#' colors will be added using `ramp_colors()`,
+#' or removed using `collapse_colors()`.
 #' @param adjust_colors Index indicating color(s) to specifically adjust.
 #' Should be an integer vector, or a character vector containing names matching
 #' those provided for `colors`.
@@ -98,33 +103,40 @@ scale_colour_spruce <- function(..., values = NULL, difference = 10,
                                 aesthetics = "colour",
                                 breaks = ggplot2::waiver(), na.value = "grey50") {
 
-  # spruce_up_colors() is called later when resizing palette
-  if (!resize_palette || !is.null(names(values))) {
-    values <- spruce_up_colors(
-      colors         = values,
-      difference     = difference,
-      property       = property,
-      range          = range,
-      filter         = filter,
-      adjust_colors  = adjust_colors,
-      exclude_colors = exclude_colors,
-      maxit          = maxit
-    )
-  }
-
-  spruce_scale(
-    aesthetics, values, breaks, ...,
-    na.value = na.value,
+  pal_spruce <- .create_spruce_pal(
+    values         = values,
+    resize_palette = resize_palette,
+    filter         = filter,
 
     difference     = difference,
     property       = property,
     range          = range,
-    filter         = filter,
-    resize_palette = resize_palette,
     adjust_colors  = adjust_colors,
     exclude_colors = exclude_colors,
     maxit          = maxit
   )
+
+  if (!is.null(values)) {
+    obj <- spruce_scale(
+      aesthetics, values, breaks, ...,
+      na.value = na.value,
+      palette  = pal_spruce
+    )
+
+  } else {
+    ScaleDiscreteSpruce <- ggplot2::ggproto(
+      "ScaleDiscreteSpruce", ggplot2::ScaleDiscrete,
+      spruce_palette = pal_spruce
+    )
+
+    obj <- ggplot2::scale_colour_discrete(
+      ...,
+      na.value = na.value,
+      super    = ScaleDiscreteSpruce
+    )
+  }
+
+  obj
 }
 
 #' @rdname scale_manual
@@ -142,47 +154,55 @@ scale_fill_spruce <- function(..., values = NULL, difference = 10,
                               aesthetics = "fill", breaks = ggplot2::waiver(),
                               na.value = "grey50") {
 
-  # spruce_up_colors() is called later when resizing palette
-  if (!resize_palette || !is.null(names(values))) {
-    values <- spruce_up_colors(
-      colors         = values,
-      difference     = difference,
-      property       = property,
-      range          = range,
-      filter         = filter,
-      adjust_colors  = adjust_colors,
-      exclude_colors = exclude_colors,
-      maxit          = maxit
-    )
-  }
-
-  spruce_scale(
-    aesthetics, values, breaks, ...,
-    na.value = na.value,
+  pal_spruce <- .create_spruce_pal(
+    values         = values,
+    resize_palette = resize_palette,
+    filter         = filter,
 
     difference     = difference,
     property       = property,
     range          = range,
-    filter         = filter,
-    resize_palette = resize_palette,
     adjust_colors  = adjust_colors,
     exclude_colors = exclude_colors,
     maxit          = maxit
   )
+
+  if (!is.null(values)) {
+    obj <- spruce_scale(
+      aesthetics, values, breaks, ...,
+      na.value = na.value,
+      palette  = pal_spruce
+    )
+
+  } else {
+    ScaleDiscreteSpruce <- ggplot2::ggproto(
+      "ScaleDiscreteSpruce", ggplot2::ScaleDiscrete,
+      spruce_palette = pal_spruce
+    )
+
+    obj <- ggplot2::scale_fill_discrete(
+      ...,
+      na.value = na.value,
+      super    = ScaleDiscreteSpruce
+    )
+  }
+
+  obj
 }
 
-#' Modification of ggplot2::manual_scale to allow automatic expansion of colors
+#' Modification of ggplot2::manual_scale to allow a new palette to be passed to
+#' ggplot2::discrete_scale()
+#' * Ideally could just use ggplot2::scale_colour_manual(), but this will not
+#'   pass a new palette to ggplot2::discrete_scale()
+#' * manual_scale, which is used by ggplot2::scale_colour_manual() is an
+#'   internal function not available to users
 #'
 #' https://github.com/tidyverse/ggplot2/blob/57ba97fa04dadc6fd73db1904e39a09d57a4fcbe/R/scale-manual.R#L146
 #' @noRd
 spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
                          name = ggplot2::waiver(), ...,
                          limits = NULL, call = rlang::caller_call(),
-
-                         difference = 10, property = c("lightness", "hue"),
-                         range = NULL, filter = NULL,
-                         resize_palette = TRUE, adjust_colors = NULL,
-                         exclude_colors = NULL, maxit = 500) {
+                         palette) {
 
   # https://github.com/tidyverse/ggplot2/blob/57ba97fa04dadc6fd73db1904e39a09d57a4fcbe/R/utilities.R#L201
   is.waive <- function(x) inherits(x, "waiver")
@@ -229,19 +249,34 @@ spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
     }
   }
 
-  # Adjust color palette provided by user
-  # * only adjust palette if names are not provided
-  resize_palette <- resize_palette && is.null(names(values))
+  # Return ggproto object
+  ggplot2::discrete_scale(
+    aesthetic, name = name,
+    palette = palette, breaks = breaks, limits = limits,
+    call = call, ...
+  )
+}
 
-  pal <- function(n, clrs = values) {
+#' Create palette function to be used when modifying colors
+#'
+#' @param values Vector of colors
+#' @param filter Color filter to pass to `spruce_up_colors()` and
+#' `collapse_colors()`
+#' @param resize_palette Should vector of colors be resized, passed to
+#' `spruce_up_colors()`
+#' @param ... Additional arguments to pass to `spruce_up_colors()`
+#' @noRd
+.create_spruce_pal <- function(values = NULL, filter = "none",
+                               resize_palette = TRUE, ...) {
 
-    if (is.null(clrs)) {
+  .create_pal <- function(n) {
+    if (is.null(values)) {
       cli::cli_abort(
         "Must provide colors, {n} needed, but none provided."
       )
     }
 
-    n_vals <- length(clrs)
+    n_vals <- length(values)
 
     if (n > n_vals && !resize_palette) {
       cli::cli_abort(
@@ -252,78 +287,80 @@ spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
 
     if (n != n_vals && resize_palette) {
       if (n > n_vals) {
-        cli::cli_warn(
-          "Insufficient number of colors provided,
-           {n - n_vals} additional colors added,
-           set `resize_palette` to `FALSE` to disable this behavior."
-        )
+        cli::cli_alert_info(c(
+          "Insufficient number of colors provided, ",
+           "{n - n_vals} additional colors added, ",
+           "set `resize_palette` to `FALSE` to disable this behavior."
+        ))
 
       } else if (n < n_vals) {
-        cli::cli_warn(
+        cli::cli_alert_info(
           "Too many colors provided,
            the {n} most distinct colors will be used,
            set `resize_palette` to `FALSE` to disable this behavior."
         )
       }
 
-      clrs <- resize_palette(clrs, n, filter = filter)
+      values <- resize_palette(values, n, filter = filter)
     }
 
-    if (resize_palette) {
-      clrs <- spruce_up_colors(
-        colors         = clrs,
-        difference     = difference,
-        property       = property,
-        range          = range,
-        filter         = filter,
-        adjust_colors  = adjust_colors,
-        exclude_colors = exclude_colors,
-        maxit          = maxit
-      )
-    }
+    # Pull first `n` colors, if `resize_palette` is `FALSE` all colors will
+    # get passed to `spruce_up_colors`
+    values <- spruce_up_colors(
+      colors = values[seq_len(n)],
+      filter = filter,
+      ...
+    )
 
-    clrs
+    values
   }
 
-  # Return ggproto object
-  # * use ScaleDiscreteSpruce to pull colors from previous scale
-  # * only need to pull colors from previous scale when values are not provided
+  # Need to dynamically set the environment for .create_pal() so it has access
+  # to the current function environment when the returned palette function is
+  # called
+  # * if the user does not provide input color values, a version of
+  #   ggplot2::manual_scale() is used, and ggplot2 default colors are later
+  #   passed to the palette function by ggplot_add.ScaleDiscreteSpruce()
+  # * if the user does provide input colors, ggplot2::scale_colour_discrete()
+  #   is used and the palette function needs access to the `values` variable
+  #   present in the enclosing environment when the palette function is called
   if (is.null(values)) {
-    sup <- ScaleDiscreteSpruce
+    function(n, values) {
+      environment(.create_pal) <- environment()
+
+      .create_pal(n)
+    }
 
   } else {
-    sup <- ggplot2::ScaleDiscrete
+    function(n) {
+      environment(.create_pal) <- environment()
+
+      .create_pal(n)
+    }
   }
-
-  ggplot2::discrete_scale(
-    aesthetic, name = name,
-    palette = pal, breaks = breaks, limits = limits,
-    call = call, super = sup, ...
-  )
 }
-
-#' @export
-ScaleDiscreteSpruce <- ggplot2::ggproto("ScaleDiscreteSpruce", ggplot2::ScaleDiscrete)
 
 #' @importFrom ggplot2 ggplot_add
 #' @method ggplot_add ScaleDiscreteSpruce
 #' @export
 ggplot_add.ScaleDiscreteSpruce <- function(object, plot, object_name) {
 
-  # Use special add() function for spruce scale
+  # Use special add() function to pull colors from previous scales
   add_spruce <- function(self, scale) {
-
     if (is.null(scale)) return()
-
-    # if (is.null(scale$palette)) return()
 
     prev_aes <- self$find(scale$aesthetics)
 
+    # Need to check for correct class since once add_spruce() is added to the
+    # object, it will be used for all other scale additions
+    # * get error if original add function is added back to object
+    is_spruce <- methods::is(scale, "ScaleDiscreteSpruce")
+
     # Adjust colors from previous scale
     # * first apply pal function from prev scale to generate color palette
-    if (any(prev_aes) && is(scale, "ScaleDiscreteSpruce")) {
+    if (any(prev_aes) && is_spruce) {
       prev_pal   <- self$scales[prev_aes][[1]]$palette
-      spruce_pal <- scale$palette
+      spruce_pal <- scale$spruce_palette
 
       new_pal <- function(n) {
         values <- prev_pal(n)
@@ -334,22 +371,41 @@ ggplot_add.ScaleDiscreteSpruce <- function(object, plot, object_name) {
 
       self$scales[prev_aes][[1]]$palette <- new_pal
 
-    } else {
-      if (any(prev_aes)) {
-        # Get only the first aesthetic name in the returned vector -- it can
-        # sometimes be c("x", "xmin", "xmax", ....)
-        scalename <- self$scales[prev_aes][[1]]$aesthetics[1]
+      scale <- NULL
 
-        cli::cli_inform(c(
-          "Scale for {.field {scalename}} is already present.",
-          "Adding another scale for {.field {scalename}},
+    } else if (any(prev_aes)) {
+      # Get only the first aesthetic name in the returned vector -- it can
+      # sometimes be c("x", "xmin", "xmax", ....)
+      scalename <- self$scales[prev_aes][[1]]$aesthetics[1]
+
+      cli::cli_inform(c(
+        "Scale for {.field {scalename}} is already present.",
+        "Adding another scale for {.field {scalename}},
            which will replace the existing scale."
-        ))
-      }
+      ))
 
       # Remove old scale for this aesthetic (if it exists)
-      self$scales <- c(self$scales[!prev_aes], list(scale))
+      self$scales <- self$scales[!prev_aes]
+
+    } else if (is_spruce) {
+      prev_pal   <- scale$palette
+      spruce_pal <- scale$spruce_palette
+
+      new_pal <- function(n) {
+        values <- prev_pal(n)
+        pal    <- spruce_pal(n, values)
+
+        pal
+      }
+
+      scale$palette <- new_pal
     }
+
+    scales <- self$scales
+
+    if (!is.null(scale)) scales <- c(scales, list(scale))
+
+    self$scales <- scales
   }
 
   plot$scales$add <- add_spruce

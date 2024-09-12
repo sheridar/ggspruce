@@ -15,6 +15,7 @@ Imports:
     farver,
     GenSA,
     ggplot2 (>= 3.5.0),
+    methods,
     purrr,
     rlang,
     tibble

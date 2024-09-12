@@ -132,10 +132,27 @@ plt1 <- plt +
 
 # Adjust colors from existing scale
 plt2 <- plt +
-  scale_color_hue() +
-  scale_color_spruce(difference = 30)
+  scale_y_log10() +
+  # scale_color_hue() +
+  scale_color_spruce(
+    values = clrs,
+    difference = 0
+  ) +
+  scale_color_spruce(
+    values = clrs[1:3],
+    difference = 20,
+    property = "lightness"
+  ) +
+  # scale_color_spruce(difference = 20) +
+  scale_y_log10()
+#> Scale for colour is already present.
+#> Adding another scale for colour, which will replace the existing scale.
+#> Scale for y is already present.
+#> Adding another scale for y, which will replace the existing scale.
 
 plot_grid(plt1, plt2, nrow = 1)
+#> ℹ Insufficient number of colors provided, 5 additional colors added, set `resize_palette` to `FALSE` to disable this behavior.
+#> ℹ The minimum color difference for the adjusted palette is 13.7, increase `maxit` to improve optimization.
 ```
 
 <img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
@@ -159,8 +176,7 @@ new_clrs <- clrs |>
     property   = c("lightness", "saturation"),
     filter     = "deutan"
   )
-#> Warning: The minimum color difference for the adjusted palette is 14.3, increase `maxit`
-#> to improve optimization.
+#> ℹ The minimum color difference for the adjusted palette is 14.3, increase `maxit` to improve optimization.
 
 # Plot adjusted colors without filter
 plt1 <- clrs |>

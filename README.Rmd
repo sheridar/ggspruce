@@ -139,8 +139,19 @@ plt1 <- plt +
 
 # Adjust colors from existing scale
 plt2 <- plt +
-  scale_color_hue() +
-  scale_color_spruce(difference = 30)
+  scale_y_log10() +
+  # scale_color_hue() +
+  scale_color_spruce(
+    values = clrs,
+    difference = 0
+  ) +
+  scale_color_spruce(
+    values = clrs[1:3],
+    difference = 20,
+    property = "lightness"
+  ) +
+  # scale_color_spruce(difference = 20) +
+  scale_y_log10()
 
 plot_grid(plt1, plt2, nrow = 1)
 ```

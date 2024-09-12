@@ -138,10 +138,10 @@ spruce_up_colors <- function(colors, difference = 10,
   }
 
   if (min_diff < difference) {
-    cli::cli_warn(
-      "The minimum color difference for the adjusted palette
-       is {round(min_diff, 1)}, increase `maxit` to improve optimization."
-    )
+    cli::cli_alert_info(c(
+      "The minimum color difference for the adjusted palette ",
+      "is {round(min_diff, 1)}, increase `maxit` to improve optimization."
+    ))
   }
 
   # Return optimized colors
@@ -205,18 +205,18 @@ plot_colors <- function(colors, label_size = 14, label_color = "white", ...) {
 
   x <- names(colors) %||% as.character(seq_along(colors))
 
-  dat <- data.frame(
+  dat <- tibble::tibble(
     x   = factor(x, x),
     lab = colors
   )
 
-  res <- ggplot2::ggplot(dat, aes(x, fill = x)) +
+  res <- ggplot2::ggplot(dat, ggplot2::aes(x, fill = x)) +
     ggplot2::geom_bar(...) +
     ggplot2::geom_text(
-      aes(y = 0.5, label = lab),
+      ggplot2::aes(y = 0.5, label = .data$lab),
       angle = 90,
       color = label_color,
-      size  = label_size / .pt
+      size  = label_size / ggplot2::.pt
     ) +
     ggplot2::scale_fill_manual(values = colors) +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(c(0.03, 0.03))) +

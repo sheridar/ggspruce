@@ -6,8 +6,7 @@
 #' @param n Number of colors to include in final color palette
 #' @param order If `TRUE`, when colors are expanded new colors are interspersed,
 #' if `FALSE`, new colors are added to the end.
-#' @param ... Additional arguments to pass to `collapse_colors()` or
-#' `ramp_colors()`
+#' @param ... Additional arguments to pass to `collapse_colors()`.
 #' @export
 resize_palette <- function(colors, n, order = TRUE, ...) {
 
@@ -16,7 +15,7 @@ resize_palette <- function(colors, n, order = TRUE, ...) {
   if (n_clrs == n) return(colors)
 
   if (n > n_clrs) {
-    res <- ramp_colors(colors, n, ...)
+    res <- ramp_colors(colors, n)
 
   } else {
     res <- collapse_colors(colors, n, ...)
@@ -28,7 +27,7 @@ resize_palette <- function(colors, n, order = TRUE, ...) {
 #' Ramp colors
 #'
 #' Insert additional colors into palette, this behaves similar to
-#' `grDevices::colorRampPalette()`, but keeps all of the original colors in the
+#' `scales::colour_ramp()`, but keeps all of the original colors in the
 #' final palette.
 #'
 #' @param colors Vector of colors
@@ -37,13 +36,13 @@ resize_palette <- function(colors, n, order = TRUE, ...) {
 #' palette
 #' @param order If `TRUE` colors are ordered with new colors interspersed,
 #' if `FALSE` new colors are added to the end.
-#' @param ... Additional arguments to pass to `grDevices::colorRamp()`
+#' @param ... Additional arguments to pass to `scales::colour_ramp()`
 #' @export
 ramp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
 
   # Calculate x for interpolation while preserving original colors
   # * for interpolation x is the position of the color in the palette and y
-  #   is the r, b, or g value for each color
+  #   is the l, a, or b value for each color
   # * need to keep x from original color palette so these colors will be
   #   present in the new color palette.
   clrs_n <- length(colors)
@@ -67,32 +66,17 @@ ramp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
     difs <- sort(difs)
     difs <- as.numeric(names(difs))
 
-    new_x <- new_x[tail(difs, dif_n)]
+    new_x <- new_x[utils::tail(difs, dif_n)]
     new_x <- sort(c(x, new_x))
   }
 
   # Get colorRamp function
   # * this creates a function that can interpolate new colors using the original
   #   palette
-  ramp <- grDevices::colorRamp(colors, ...)
+  ramp <- scales::colour_ramp(colors, ...)
 
-  # Generate expanded color palette using the x values
-  new_clrs <- ramp(new_x)
-
-  # Convert new colors to hex codes
-  if (ncol(new_clrs) == 4L) {
-    res <- grDevices::rgb(
-      new_clrs[, 1L], new_clrs[, 2L],
-      new_clrs[, 3L], new_clrs[, 4L],
-      maxColorValue = 255
-    )
-
-  } else {
-    res <- grDevices::rgb(
-      new_clrs[, 1L], new_clrs[, 2L], new_clrs[, 3L],
-      maxColorValue = 255
-    )
-  }
+  # Generate expanded color palette using x values
+  res <- ramp(new_x)
 
   if (keep_original && !order) {
     res <- c(res[res %in% colors], res[!res %in% colors])
@@ -148,7 +132,7 @@ collapse_colors <- function(colors, n, filter = NULL, exact = NULL, ...) {
       )
     }
 
-    combns <- combn(seq_along(colors), m = n, simplify = FALSE)
+    combns <- utils::combn(seq_along(colors), m = n, simplify = FALSE)
 
     res <- purrr::map_dbl(combns, ~ {
       .get_min_dist(dst, .x, comparison = "idx_vs_idx")
@@ -302,7 +286,7 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
   res <- get_property(new_clrs, property = property)
   res <- tibble::add_column(res, idx = idx)
   res <- res[order(res$idx, res[[property]]), ]
-  res <- setNames(res$color, nms)
+  res <- stats::setNames(res$color, nms)
 
   res
 }
@@ -310,7 +294,7 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
 .set_range <- function(val, direction = NULL, rng) {
 
   if (is.null(direction)) {
-    med <- floor(median(rng))
+    med <- floor(stats::median(rng))
 
     direction <- ifelse(val <= med, 1, -1)
   }

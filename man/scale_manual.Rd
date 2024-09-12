@@ -110,6 +110,12 @@ applying the filter.
 A vector can be passed to adjust based on multiple color filters.
 Possible values include, "none", "deutan", "protan", and "tritan".}
 
+\item{resize_palette}{Should provided color palette be resized based on the
+number of groups plotted.
+If `TRUE`, when too few or too many colors are provided,
+colors will be added using `ramp_colors()`,
+or removed using `collapse_colors()`.}
+
 \item{adjust_colors}{Index indicating color(s) to specifically adjust.
 Should be an integer vector, or a character vector containing names matching
 those provided for `colors`.}

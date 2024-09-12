@@ -41,9 +41,9 @@
 #' @md
 #' @name tidyeval
 #' @keywords internal
-#' @importFrom rlang %||%
-#' @aliases %||%
-#' @export %||%
+#' @importFrom rlang %||% .data
+#' @aliases %||% .data
+#' @export %||% .data
 NULL
 
 #' Lift the domain of a function
