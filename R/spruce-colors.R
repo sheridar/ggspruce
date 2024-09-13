@@ -23,7 +23,12 @@
 #' Colors will be adjusted to minimize the pairwise difference before and after
 #' applying the filter.
 #' A vector can be passed to adjust based on multiple color filters.
-#' Possible values include, "deutan", "protan", and "tritan".
+#' Possible values include,
+#' - "colorblind", use deutan, protan, and tritan color blindness simulation
+#'   filters
+#' - "deutan"
+#' - "protan"
+#' - "tritan"
 #' @param adjust_colors Index indicating color(s) to specifically adjust.
 #' Should be an integer vector, or a character vector containing names matching
 #' those provided for `colors`.
@@ -42,10 +47,22 @@ spruce_up_colors <- function(colors, difference = 10,
                              filter = NULL, adjust_colors = NULL,
                              exclude_colors = NULL, maxit = 500, ...) {
 
+  .chk_spruce_args(
+    colors         = colors,
+    difference     = difference,
+    range          = range,
+    adjust_colors  = adjust_colors,
+    exclude_colors = exclude_colors,
+    maxit          = maxit
+  )
+
+  # Set property arguments
+  property <- .chk_prop_args(property, multi = TRUE)
+
   adj_params <- SPACE_PARAMS[property]
 
-  if (!is.null(range)) {
-    if (is.vector(range)) range <- list(range)
+  if (!rlang::is_null(range)) {
+    if (rlang::is_vector(range)) range <- list(range)
 
     for (i in seq_along(adj_params)) {
       if (i > length(range)) break()
@@ -55,9 +72,8 @@ spruce_up_colors <- function(colors, difference = 10,
   }
 
   # Set color filters to test
-  filter    <- filter %||% "none"
-  clr_filts <- unique(c("none", filter))
-  clr_filts <- purrr::set_names(clr_filts)
+  # * always include "none" since this tests without a filter
+  clr_filts <- .chk_filt_args(filter, multi = TRUE)
 
   # Identify initial colors to adjust
   # * for initial attempt optimization is based on comparison between the index
@@ -148,6 +164,118 @@ spruce_up_colors <- function(colors, difference = 10,
   res
 }
 
+.chk_spruce_args <- function(colors = NULL, difference = NULL, range = NULL,
+                             adjust_colors = NULL, exclude_colors = NULL,
+                             maxit = NULL, n = NULL, exact = NULL,
+                             keep_original = NULL) {
+
+  # Check colors
+  if (!missing(colors) && !rlang::is_null(colors)) {
+    if (!rlang::is_character(colors) || !rlang::has_length(colors)) {
+      cli::cli_abort("`colors` must be a character vector.")
+    }
+  }
+
+  # Check difference
+  if (!missing(difference)) {
+    if (!rlang::is_bare_numeric(difference) || !rlang::has_length(difference, 1)) {
+      cli::cli_abort("`difference` must be a single numeric value.")
+    }
+  }
+
+  # Check range
+  if (!missing(range) && !rlang::is_null(range)) {
+    if (rlang::is_vector(range)) range <- list(range)
+
+    purrr::walk(range, ~ {
+      if (!rlang::is_bare_numeric(.x) || !rlang::has_length(.x, 2)) {
+        cli::cli_abort("Provided ranges must include two numeric values.")
+      }
+    })
+  }
+
+  # Check adjust_colors
+  if (!missing(adjust_colors) || !missing(exclude_colors)) {
+    adj_ex_clrs <- list(adjust_colors, exclude_colors)
+
+    purrr::walk(adj_ex_clrs, ~ {
+      if (!rlang::is_null(.x)) {
+        if (!rlang::is_bare_numeric(.x) && !rlang::is_character(.x)) {
+          cli::cli_abort(
+            "`adjust_colors` and `exclude_colors` must
+            be a numeric or character vector."
+          )
+        }
+      }
+    })
+  }
+
+  # Check maxit
+  if (!missing(maxit)) {
+    if (!rlang::is_bare_numeric(maxit) || !rlang::has_length(maxit, 1)) {
+      cli::cli_abort("`maxit` must be a single numeric value.")
+    }
+  }
+
+  # Check n
+  if (!missing(n)) {
+    if (!rlang::is_bare_numeric(n) || !rlang::has_length(n, 1)) {
+      cli::cli_abort("`n` must be a single numeric value.")
+    }
+  }
+
+  # Check exact
+  if (!missing(exact) && !rlang::is_null(exact)) {
+    if (!rlang::is_bare_logical(exact) || !rlang::has_length(exact, 1)) {
+      cli::cli_abort("`exact` must be `TRUE` or `FALSE`.")
+    }
+  }
+
+  # Check keep_original
+  if (!missing(keep_original)) {
+    if (!rlang::is_bare_logical(keep_original) || !rlang::has_length(keep_original, 1)) {
+      cli::cli_abort("`keep_original` must be `TRUE` or `FALSE`.")
+    }
+  }
+
+  invisible(NULL)
+}
+
+.chk_filt_args <- function(filter, multi = TRUE) {
+
+  # Set color filters to test
+  # * always include "none" since this tests without a filter
+  filter   <- filter %||% "none"
+  pos_cb   <- c("deutan", "protan", "tritan")
+  pos_filt <- c("none", pos_cb)
+
+  if (multi) {
+    filter   <- unique(c(filter, "none"))
+    pos_filt <- c(pos_filt, "colorblind")
+  }
+
+  filter <- rlang::arg_match(filter, pos_filt, multiple = multi)
+
+  if ("colorblind" %in% filter) {
+    filter <- filter[filter != "colorblind"]
+    filter <- c(filter, pos_cb)
+  }
+
+  res <- purrr::set_names(unique(filter))
+
+  res
+}
+
+.chk_prop_args <- function(property, multi = TRUE) {
+  res <- rlang::arg_match(
+    property,
+    names(SPACE_PARAMS),
+    multiple = multi
+  )
+
+  res
+}
+
 SPACE_PARAMS <- list(
   lightness  = list("lab", 1, c(3, 85)),
   a          = list("lab", 2, c(-128, 127)),
@@ -174,6 +302,8 @@ SPACE_PARAMS <- list(
 #' @export
 get_property <- function(colors, property) {
 
+  property <- .chk_prop_args(colors = colors, property = property)
+
   params <- SPACE_PARAMS[property]
 
   props <- purrr::imap(params, ~ {
@@ -196,12 +326,24 @@ get_property <- function(colors, property) {
 
 #' Plot color palette
 #'
-#' @param colors Character vector of colors to adjust
+#' @param colors Character vector of colors to plot.
+#' @param filter Filter to apply when plotting colors,
+#' possible values include,
+#' - "deutan"
+#' - "protan"
+#' - "tritan"
 #' @param label_size Size of labels
 #' @param label_color Color of labels
 #' @param ... Additional arguments to pass to `ggplot2::geom_bar()`
 #' @export
-plot_colors <- function(colors, label_size = 14, label_color = "white", ...) {
+plot_colors <- function(colors, filter = NULL, label_size = 14,
+                        label_color = "white", ...) {
+
+  .chk_spruce_args(colors = colors)
+
+  filter <- .chk_filt_args(filter = filter, multi = FALSE)
+
+  colors <- .filter_clrs(colors, filter = unname(filter))
 
   x <- names(colors) %||% as.character(seq_along(colors))
 
@@ -239,15 +381,19 @@ plot_colors <- function(colors, label_size = 14, label_color = "white", ...) {
 #' Colors will be adjusted to minimize the pairwise difference before and after
 #' applying the filter.
 #' A vector can be passed to adjust based on multiple color filters.
-#' Possible values include, "deutan", "protan", and "tritan".
+#' Possible values include,
+#' - "colorblind", use deutan, protan, and tritan color blindness simulation
+#'   filters
+#' - "deutan"
+#' - "protan"
+#' - "tritan"
 #' @param method Method to use for comparison,
 #' refer to `farver::compare_colour()`.
 #' @export
 compare_colors <- function(colors, y = NULL, filter = NULL,
                            method = "CIE2000") {
 
-  filter <- filter %||% "none"
-  filter <- unique(c("none", filter))
+  filter <- .chk_filt_args(filter, multi = TRUE)
 
   dst <- .compare_clrs(
     colors,
@@ -430,8 +576,9 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
 #' @noRd
 .filter_clrs <- function(clrs, filter) {
 
+  if (rlang::is_null(filter) || identical(filter, "none")) return(clrs)
+
   fn_lst <- list(
-    none   = (function(x) x),
     deutan = colorspace::deutan,
     protan = colorspace::protan,
     tritan = colorspace::tritan
@@ -448,7 +595,7 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
   if (rlang::is_function(filter)) {
     fn <- filter
 
-  } else if (is.character(filter) && length(filter) == 1) {
+  } else if (rlang::is_character(filter) && rlang::has_length(filter, 1)) {
     if (!filter %in% fn_nms) err()
 
     fn <- fn_lst[[filter]]

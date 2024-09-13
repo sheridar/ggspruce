@@ -94,8 +94,15 @@ ramp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
 #' @param n Number of colors to include in final color palette
 #' @param filter Filter to apply to color palette when
 #' calculating pairwise differences.
+#' Colors will be adjusted to minimize the pairwise difference before and after
+#' applying the filter.
 #' A vector can be passed to adjust based on multiple color filters.
-#' Possible values include, "none", "deutan", "protan", and "tritan".
+#' Possible values include,
+#' - "colorblind", use deutan, protan, and tritan color blindness simulation
+#'   filters
+#' - "deutan"
+#' - "protan"
+#' - "tritan"
 #' @param exact When `FALSE` the most distinct colors will be determined using
 #' a simulated annealing approach.
 #' This provides an approximate solution but is quick and generally performs
@@ -110,11 +117,11 @@ ramp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
 #' @export
 collapse_colors <- function(colors, n, filter = NULL, exact = NULL, ...) {
 
+  .chk_spruce_args(colors = colors, n = n, exact = exact)
+
   if (n >= length(colors)) return(colors)
 
-  # Always also test colors without a filter
-  filter <- filter %||% "none"
-  filter <- unique(c("none", filter))
+  filter <- .chk_filt_args(filter, multi = TRUE)
 
   # Calculate pairwise differences
   dst <- .compare_clrs(colors, filt = filter)
@@ -209,9 +216,13 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
                           property = "lightness", direction = NULL,
                           range = NULL, ...) {
 
-  if (length(property) > 1) {
-    cli::cli_abort("`property` must be length 1.")
-  }
+  .chk_spruce_args(
+    colors = colors,
+    keep_original = keep_original,
+    range = range
+  )
+
+  property <- .chk_prop_args(property, multi = FALSE)
 
   if (is.null(n) && is.null(names)) return(colors)
 
@@ -221,6 +232,10 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
   nms <- NULL
 
   if (!is.null(names)) {
+    if (length(names) != length(colors)) {
+      cli::cli_abort("`names` must be a list the same length as `colors`.")
+    }
+
     nms <- c(names, recursive = TRUE)
 
     n <- purrr::map_dbl(names, length)
@@ -231,8 +246,7 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
 
   if (length(n) != length(colors)) {
     cli::cli_abort(
-      "`n` must be a single integer or
-       a vector or list the same length as `colors`."
+      "`n` must be a single integer or a vector the same length as `colors`."
     )
   }
 
@@ -330,6 +344,18 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
 assign_colors <- function(colors, names, select_best = TRUE,
                           order = TRUE, ...) {
 
+  .chk_spruce_args(colors = colors)
+
+  purrr::walk(list(select_best, order), ~ {
+    if (!rlang::is_bare_logical(.x) || !rlang::has_length(.x, 1)) {
+      cli::cli_abort("`select_best` and `order` must be `TRUE` or `FALSE`.")
+    }
+  })
+
+  if (!rlang::is_bare_character(names)) {
+    cli::cli_abort("`names` must be a character vector.")
+  }
+
   n <- length(names)
 
   if (!select_best && length(colors) > n) {
@@ -350,6 +376,11 @@ assign_colors <- function(colors, names, select_best = TRUE,
 #' @param desc Sort in descending order
 #' @export
 sort_colors <- function(colors, property = "hue", desc = FALSE) {
+
+  .chk_spruce_args(colors = colors)
+
+  property <- .chk_prop_args(property, multi = TRUE)
+
   prop <- get_property(colors, property)
   vals <- as.list(prop[property])
   idx  <- .lift(order, decreasing = desc)(vals)
