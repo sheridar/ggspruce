@@ -8,6 +8,7 @@ spruce_up_colors(
   colors,
   difference = 10,
   property = c("lightness", "hue"),
+  method = "CIE2000",
   range = NULL,
   filter = NULL,
   adjust_colors = NULL,
@@ -34,6 +35,13 @@ is greater than this threshold.}
 - "green", from RGB colorspace
 - "blue", from RGB colorspace}
 
+\item{method}{Method to use for comparing colors, can be one of:
+- "euclidian"
+- "CIE1976"
+- "CIE94"
+- "CIE2000"
+- "CMC"}
+
 \item{range}{A vector containing the minimum and maximum values to use when
 adjusting colors.
 If multiple color properties will be adjusted, provide a list with ranges
@@ -44,7 +52,12 @@ calculating pairwise differences.
 Colors will be adjusted to minimize the pairwise difference before and after
 applying the filter.
 A vector can be passed to adjust based on multiple color filters.
-Possible values include, "deutan", "protan", and "tritan".}
+Possible values include,
+- "colorblind", use deutan, protan, and tritan color blindness simulation
+  filters
+- "deutan"
+- "protan"
+- "tritan"}
 
 \item{adjust_colors}{Index indicating color(s) to specifically adjust.
 Should be an integer vector, or a character vector containing names matching

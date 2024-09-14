@@ -35,6 +35,12 @@
 #' - "red", from RGB colorspace
 #' - "green", from RGB colorspace
 #' - "blue", from RGB colorspace
+#' @param method Method to use for comparing colors, can be one of:
+#' - "euclidian"
+#' - "CIE1976"
+#' - "CIE94"
+#' - "CIE2000"
+#' - "CMC"
 #' @param range A vector containing the minimum and maximum values to use when
 #' adjusting the specified color property.
 #' @param filter Filter to apply to color palette when
@@ -43,10 +49,10 @@
 #' applying the filter.
 #' A vector can be passed to adjust based on multiple color filters.
 #' Possible values include, "none", "deutan", "protan", and "tritan".
-#' @param resize_palette Should provided color palette be resized based on the
+#' @param resize Should provided color palette be resized based on the
 #' number of groups plotted.
 #' If `TRUE`, when too few or too many colors are provided,
-#' colors will be added using `ramp_colors()`,
+#' colors will be added using `interp_colors()`,
 #' or removed using `collapse_colors()`.
 #' @param adjust_colors Index indicating color(s) to specifically adjust.
 #' Should be an integer vector, or a character vector containing names matching
@@ -97,19 +103,21 @@ NULL
 #' @export
 scale_colour_spruce <- function(..., values = NULL, difference = 10,
                                 property = c("lightness", "hue"),
+                                method = "CIE2000",
                                 range = NULL, filter = NULL,
-                                resize_palette = TRUE, adjust_colors = NULL,
+                                resize = TRUE, adjust_colors = NULL,
                                 exclude_colors = NULL, maxit = 500,
                                 aesthetics = "colour",
                                 breaks = ggplot2::waiver(), na.value = "grey50") {
 
   pal_spruce <- .create_spruce_pal(
-    values         = values,
-    resize_palette = resize_palette,
-    filter         = filter,
+    values = values,
+    resize = resize,
+    filter = filter,
 
     difference     = difference,
     property       = property,
+    method         = method,
     range          = range,
     adjust_colors  = adjust_colors,
     exclude_colors = exclude_colors,
@@ -149,18 +157,19 @@ scale_color_spruce <- scale_colour_spruce
 scale_fill_spruce <- function(..., values = NULL, difference = 10,
                               property = c("lightness", "hue"),
                               range = NULL, filter = NULL,
-                              resize_palette = TRUE, adjust_colors = NULL,
+                              resize = TRUE, adjust_colors = NULL,
                               exclude_colors = NULL, maxit = 500,
                               aesthetics = "fill", breaks = ggplot2::waiver(),
                               na.value = "grey50") {
 
   pal_spruce <- .create_spruce_pal(
-    values         = values,
-    resize_palette = resize_palette,
-    filter         = filter,
+    values = values,
+    resize = resize,
+    filter = filter,
 
     difference     = difference,
     property       = property,
+    method         = method,
     range          = range,
     adjust_colors  = adjust_colors,
     exclude_colors = exclude_colors,
@@ -262,12 +271,12 @@ spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
 #' @param values Vector of colors
 #' @param filter Color filter to pass to `spruce_up_colors()` and
 #' `collapse_colors()`
-#' @param resize_palette Should vector of colors be resized, passed to
+#' @param resize Should vector of colors be resized, passed to
 #' `spruce_up_colors()`
 #' @param ... Additional arguments to pass to `spruce_up_colors()`
 #' @noRd
 .create_spruce_pal <- function(values = NULL, filter = "none",
-                               resize_palette = TRUE, ...) {
+                               resize = TRUE, ...) {
 
   .create_pal <- function(n) {
     if (is.null(values)) {
@@ -278,33 +287,33 @@ spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
 
     n_vals <- length(values)
 
-    if (n > n_vals && !resize_palette) {
+    if (n > n_vals && !resize) {
       cli::cli_abort(
         "Insufficient number of colors provided,
          {n} needed but only {length(values)} provided."
       )
     }
 
-    if (n != n_vals && resize_palette) {
+    if (n != n_vals && resize) {
       if (n > n_vals) {
         cli::cli_alert_info(c(
           "Insufficient number of colors provided, ",
            "{n - n_vals} additional colors added, ",
-           "set `resize_palette` to `FALSE` to disable this behavior."
+           "set `resize` to `FALSE` to disable this behavior."
         ))
 
       } else if (n < n_vals) {
         cli::cli_alert_info(
           "Too many colors provided,
            the {n} most distinct colors will be used,
-           set `resize_palette` to `FALSE` to disable this behavior."
+           set `resize` to `FALSE` to disable this behavior."
         )
       }
 
-      values <- resize_palette(values, n, filter = filter)
+      values <- resize_colors(values, n, filter = filter)
     }
 
-    # Pull first `n` colors, if `resize_palette` is `FALSE` all colors will
+    # Pull first `n` colors, if `resize` is `FALSE` all colors will
     # get passed to `spruce_up_colors`
     values <- spruce_up_colors(
       colors = values[seq_len(n)],

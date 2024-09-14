@@ -116,6 +116,7 @@ plt2 <- plt +
   ggtitle("adjusted")
 
 plot_grid(plt1, plt2, nrow = 1)
+#> ℹ The minimum color difference for the adjusted palette is 23.1, increase `maxit` to improve optimization.
 ```
 
 <img src="man/figures/README-unnamed-chunk-5-1.png" width="100%" />
@@ -126,33 +127,14 @@ If no colors are provided to the `scale_*_spruce()` functions, they will
 pull colors from the existing color scale.
 
 ``` r
-# Plot original palette
-plt1 <- plt +
-  scale_color_hue()
-
 # Adjust colors from existing scale
-plt2 <- plt +
-  scale_y_log10() +
-  # scale_color_hue() +
-  scale_color_spruce(
-    values = clrs,
-    difference = 0
-  ) +
-  scale_color_spruce(
-    values = clrs[1:3],
-    difference = 20,
-    property = "lightness"
-  ) +
-  # scale_color_spruce(difference = 20) +
-  scale_y_log10()
-#> Scale for colour is already present.
-#> Adding another scale for colour, which will replace the existing scale.
-#> Scale for y is already present.
-#> Adding another scale for y, which will replace the existing scale.
+plt1 <- plt +
+  scale_color_discrete()
+
+plt2 <- plt1 +
+  scale_color_spruce(difference = 25)
 
 plot_grid(plt1, plt2, nrow = 1)
-#> ℹ Insufficient number of colors provided, 5 additional colors added, set `resize_palette` to `FALSE` to disable this behavior.
-#> ℹ The minimum color difference for the adjusted palette is 13.7, increase `maxit` to improve optimization.
 ```
 
 <img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
@@ -176,7 +158,7 @@ new_clrs <- clrs |>
     property   = c("lightness", "saturation"),
     filter     = "deutan"
   )
-#> ℹ The minimum color difference for the adjusted palette is 14.3, increase `maxit` to improve optimization.
+#> ℹ The minimum color difference for the adjusted palette is 14, increase `maxit` to improve optimization.
 
 # Plot adjusted colors without filter
 plt1 <- clrs |>

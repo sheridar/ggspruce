@@ -17,10 +17,19 @@ calculating pairwise differences.
 Colors will be adjusted to minimize the pairwise difference before and after
 applying the filter.
 A vector can be passed to adjust based on multiple color filters.
-Possible values include, "deutan", "protan", and "tritan".}
+Possible values include,
+- "colorblind", use deutan, protan, and tritan color blindness simulation
+  filters
+- "deutan"
+- "protan"
+- "tritan"}
 
-\item{method}{Method to use for comparison,
-refer to `farver::compare_colour()`.}
+\item{method}{Method to use for comparing colors, can be one of:
+- "euclidian"
+- "CIE1976"
+- "CIE94"
+- "CIE2000"
+- "CMC"}
 }
 \description{
 Compare colors in palette

@@ -4,10 +4,16 @@
 \alias{plot_colors}
 \title{Plot color palette}
 \usage{
-plot_colors(colors, label_size = 14, label_color = "white", ...)
+plot_colors(colors, filter = NULL, label_size = 14, label_color = "white", ...)
 }
 \arguments{
-\item{colors}{Character vector of colors to adjust}
+\item{colors}{Character vector of colors to plot.}
+
+\item{filter}{Filter to apply when plotting colors,
+possible values include,
+- "deutan"
+- "protan"
+- "tritan"}
 
 \item{label_size}{Size of labels}
 

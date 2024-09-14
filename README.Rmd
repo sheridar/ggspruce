@@ -133,25 +133,12 @@ If no colors are provided to the `scale_*_spruce()` functions, they will pull
 colors from the existing color scale.
 
 ```{r, fig.width = 8, fig.height = 5}
-# Plot original palette
-plt1 <- plt +
-  scale_color_hue()
-
 # Adjust colors from existing scale
-plt2 <- plt +
-  scale_y_log10() +
-  # scale_color_hue() +
-  scale_color_spruce(
-    values = clrs,
-    difference = 0
-  ) +
-  scale_color_spruce(
-    values = clrs[1:3],
-    difference = 20,
-    property = "lightness"
-  ) +
-  # scale_color_spruce(difference = 20) +
-  scale_y_log10()
+plt1 <- plt +
+  scale_color_discrete()
+
+plt2 <- plt1 +
+  scale_color_spruce(difference = 25)
 
 plot_grid(plt1, plt2, nrow = 1)
 ```

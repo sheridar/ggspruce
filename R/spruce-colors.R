@@ -14,6 +14,12 @@
 #' - "red", from RGB colorspace
 #' - "green", from RGB colorspace
 #' - "blue", from RGB colorspace
+#' @param method Method to use for comparing colors, can be one of:
+#' - "euclidian"
+#' - "CIE1976"
+#' - "CIE94"
+#' - "CIE2000"
+#' - "CMC"
 #' @param range A vector containing the minimum and maximum values to use when
 #' adjusting colors.
 #' If multiple color properties will be adjusted, provide a list with ranges
@@ -43,13 +49,16 @@
 #' @param ... Additional control parameters to pass to `GenSA::GenSA()`.
 #' @export
 spruce_up_colors <- function(colors, difference = 10,
-                             property = c("lightness", "hue"), range = NULL,
+                             property = c("lightness", "hue"),
+                             method = "CIE2000", range = NULL,
                              filter = NULL, adjust_colors = NULL,
-                             exclude_colors = NULL, maxit = 500, ...) {
+                             exclude_colors = NULL, maxit = 500,
+                             ...) {
 
   .chk_spruce_args(
     colors         = colors,
     difference     = difference,
+    method         = method,
     range          = range,
     adjust_colors  = adjust_colors,
     exclude_colors = exclude_colors,
@@ -72,7 +81,6 @@ spruce_up_colors <- function(colors, difference = 10,
   }
 
   # Set color filters to test
-  # * always include "none" since this tests without a filter
   clr_filts <- .chk_filt_args(filter, multi = TRUE)
 
   # Identify initial colors to adjust
@@ -121,6 +129,7 @@ spruce_up_colors <- function(colors, difference = 10,
   optim_res <- .run_gensa(
     clrs         = colors,
     clr_idx      = clr_idx,
+    method       = method,
     adj_params   = adj_params,
     filts        = clr_filts,
     gensa_params = sa_params
@@ -140,6 +149,7 @@ spruce_up_colors <- function(colors, difference = 10,
     full_res <- .run_gensa(
       clrs         = res,
       clr_idx      = full_idx,  # update to adjust all colors
+      method       = method,
       adj_params   = adj_params,
       filts        = clr_filts,
       gensa_params = sa_params
@@ -164,7 +174,153 @@ spruce_up_colors <- function(colors, difference = 10,
   res
 }
 
-.chk_spruce_args <- function(colors = NULL, difference = NULL, range = NULL,
+#' Get color property
+#'
+#' @param colors Character vector of colors
+#' @param property Vector of color properties to return, can include any of:
+#' - "lightness", from LAB colorspace
+#' - "a", from LAB colorspace
+#' - "b", from LAB colorspace
+#' - "hue", from HSL colorspace
+#' - "saturation", from HSL colorspace
+#' - "red", from RGB colorspace
+#' - "green", from RGB colorspace
+#' - "blue", from RGB colorspace
+#' @export
+get_property <- function(colors, property) {
+
+  property <- .chk_prop_args(property = property, multi = TRUE)
+
+  params <- SPACE_PARAMS[property]
+
+  props <- purrr::imap(params, ~ {
+    p <- farver::decode_colour(colors, to = .x[[1]])
+
+    p[, .x[[2]]]
+  })
+
+  res <- tibble::as_tibble(props)
+
+  res <- tibble::add_column(
+    res,
+    names   = names(colors),
+    color   = colors,
+    .before = 1
+  )
+
+  res
+}
+
+#' Plot color palette
+#'
+#' @param colors Character vector of colors to plot.
+#' @param filter Filter to apply when plotting colors,
+#' possible values include,
+#' - "deutan"
+#' - "protan"
+#' - "tritan"
+#' @param label_size Size of labels
+#' @param label_color Color of labels
+#' @param ... Additional arguments to pass to `ggplot2::geom_bar()`
+#' @export
+plot_colors <- function(colors, filter = NULL, label_size = 14,
+                        label_color = "white", ...) {
+
+  .chk_spruce_args(colors = colors)
+
+  filter <- .chk_filt_args(filter = filter, multi = FALSE)
+
+  colors <- .filter_clrs(colors, filter = unname(filter))
+
+  x <- names(colors) %||% as.character(seq_along(colors))
+
+  dat <- tibble::tibble(
+    x   = factor(x, x),
+    lab = colors
+  )
+
+  res <- ggplot2::ggplot(dat, ggplot2::aes(x, fill = x)) +
+    ggplot2::geom_bar(...) +
+    ggplot2::geom_text(
+      ggplot2::aes(y = 0.5, label = .data$lab),
+      angle = 90,
+      color = label_color,
+      size  = label_size / ggplot2::.pt
+    ) +
+    ggplot2::scale_fill_manual(values = colors) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(c(0.03, 0.03))) +
+    ggplot2::theme_void() +
+    ggplot2::theme(
+      legend.position = "none",
+      axis.text.x     = ggplot2::element_text(size = 14)
+    )
+
+  res
+}
+
+#' Compare colors in palette
+#'
+#' @param colors Vector of colors
+#' @param y Vector of colors to compare,
+#' if `NULL`, `colors` will be compared with itself.
+#' @param filter Filter to apply to color palette when
+#' calculating pairwise differences.
+#' Colors will be adjusted to minimize the pairwise difference before and after
+#' applying the filter.
+#' A vector can be passed to adjust based on multiple color filters.
+#' Possible values include,
+#' - "colorblind", use deutan, protan, and tritan color blindness simulation
+#'   filters
+#' - "deutan"
+#' - "protan"
+#' - "tritan"
+#' @param method Method to use for comparing colors, can be one of:
+#' - "euclidian"
+#' - "CIE1976"
+#' - "CIE94"
+#' - "CIE2000"
+#' - "CMC"
+#' @export
+compare_colors <- function(colors, y = NULL, filter = NULL,
+                           method = "CIE2000") {
+
+  .chk_spruce_args(colors = colors, method = method)
+  .chk_spruce_args(colors = y)
+
+  filter <- .chk_filt_args(filter, multi = TRUE)
+
+  dst <- .compare_clrs(
+    colors,
+    clrs2  = y,
+    filt   = filter,
+    method = method
+  )
+
+  min_diff <- .get_min_dist(dst, only_upper_tri = is.null(y))
+
+  min_diff
+}
+
+#' Colorspace parameters for colors properties
+#'
+#' For each property list colorspace, column number where values are located in
+#' matrix, and default range.
+#' @noRd
+SPACE_PARAMS <- list(
+  lightness  = list("lab", 1, c(20, 80)),
+  a          = list("lab", 2, c(-128, 127)),
+  b          = list("lab", 3, c(-128, 127)),
+  hue        = list("hsl", 1, c(0, 360)),
+  saturation = list("hsl", 2, c(0, 100)),
+  red        = list("rgb", 1, c(0, 255)),
+  green      = list("rgb", 2, c(0, 255)),
+  blue       = list("rgb", 3, c(0, 255))
+)
+
+#' Check arguments
+#' @noRd
+.chk_spruce_args <- function(colors = NULL, difference = NULL, method = NULL,
+                             range = NULL,
                              adjust_colors = NULL, exclude_colors = NULL,
                              maxit = NULL, n = NULL, exact = NULL,
                              keep_original = NULL) {
@@ -181,6 +337,16 @@ spruce_up_colors <- function(colors, difference = 10,
     if (!rlang::is_bare_numeric(difference) || !rlang::has_length(difference, 1)) {
       cli::cli_abort("`difference` must be a single numeric value.")
     }
+  }
+
+  # Check method
+  if (!missing(method)) {
+    pos_mets <- c(
+      "euclidean", "CMC",
+      "CIE1976", "CIE94", "CIE2000"
+    )
+
+    res <- rlang::arg_match(method, pos_mets, multiple = FALSE)
   }
 
   # Check range
@@ -276,203 +442,9 @@ spruce_up_colors <- function(colors, difference = 10,
   res
 }
 
-SPACE_PARAMS <- list(
-  lightness  = list("lab", 1, c(3, 85)),
-  a          = list("lab", 2, c(-128, 127)),
-  b          = list("lab", 3, c(-128, 127)),
-  hue        = list("hsl", 1, c(0, 360)),
-  saturation = list("hsl", 2, c(0, 100)),
-  red        = list("rgb", 1, c(0, 255)),
-  green      = list("rgb", 2, c(0, 255)),
-  blue       = list("rgb", 3, c(0, 255))
-)
+.chk_range_args <- function(range, colors, idx) {
 
-#' Get color property
-#'
-#' @param colors Character vector of colors
-#' @param property Vector of color properties to return, can include any of:
-#' - "lightness", from LAB colorspace
-#' - "a", from LAB colorspace
-#' - "b", from LAB colorspace
-#' - "hue", from HSL colorspace
-#' - "saturation", from HSL colorspace
-#' - "red", from RGB colorspace
-#' - "green", from RGB colorspace
-#' - "blue", from RGB colorspace
-#' @export
-get_property <- function(colors, property) {
-
-  property <- .chk_prop_args(colors = colors, property = property)
-
-  params <- SPACE_PARAMS[property]
-
-  props <- purrr::imap(params, ~ {
-    p <- farver::decode_colour(colors, to = .x[[1]])
-
-    p[, .x[[2]]]
-  })
-
-  res <- tibble::as_tibble(props)
-
-  res <- tibble::add_column(
-    res,
-    names   = names(colors),
-    color   = colors,
-    .before = 1
-  )
-
-  res
-}
-
-#' Plot color palette
-#'
-#' @param colors Character vector of colors to plot.
-#' @param filter Filter to apply when plotting colors,
-#' possible values include,
-#' - "deutan"
-#' - "protan"
-#' - "tritan"
-#' @param label_size Size of labels
-#' @param label_color Color of labels
-#' @param ... Additional arguments to pass to `ggplot2::geom_bar()`
-#' @export
-plot_colors <- function(colors, filter = NULL, label_size = 14,
-                        label_color = "white", ...) {
-
-  .chk_spruce_args(colors = colors)
-
-  filter <- .chk_filt_args(filter = filter, multi = FALSE)
-
-  colors <- .filter_clrs(colors, filter = unname(filter))
-
-  x <- names(colors) %||% as.character(seq_along(colors))
-
-  dat <- tibble::tibble(
-    x   = factor(x, x),
-    lab = colors
-  )
-
-  res <- ggplot2::ggplot(dat, ggplot2::aes(x, fill = x)) +
-    ggplot2::geom_bar(...) +
-    ggplot2::geom_text(
-      ggplot2::aes(y = 0.5, label = .data$lab),
-      angle = 90,
-      color = label_color,
-      size  = label_size / ggplot2::.pt
-    ) +
-    ggplot2::scale_fill_manual(values = colors) +
-    ggplot2::scale_y_continuous(expand = ggplot2::expansion(c(0.03, 0.03))) +
-    ggplot2::theme_void() +
-    ggplot2::theme(
-      legend.position = "none",
-      axis.text.x     = ggplot2::element_text(size = 14)
-    )
-
-  res
-}
-
-#' Compare colors in palette
-#'
-#' @param colors Vector of colors
-#' @param y Vector of colors to compare,
-#' if `NULL`, `colors` will be compared with itself.
-#' @param filter Filter to apply to color palette when
-#' calculating pairwise differences.
-#' Colors will be adjusted to minimize the pairwise difference before and after
-#' applying the filter.
-#' A vector can be passed to adjust based on multiple color filters.
-#' Possible values include,
-#' - "colorblind", use deutan, protan, and tritan color blindness simulation
-#'   filters
-#' - "deutan"
-#' - "protan"
-#' - "tritan"
-#' @param method Method to use for comparison,
-#' refer to `farver::compare_colour()`.
-#' @export
-compare_colors <- function(colors, y = NULL, filter = NULL,
-                           method = "CIE2000") {
-
-  filter <- .chk_filt_args(filter, multi = TRUE)
-
-  dst <- .compare_clrs(
-    colors,
-    clrs2  = y,
-    filt   = filter,
-    method = method
-  )
-
-  min_diff <- .get_min_dist(dst, only_upper_tri = is.null(y))
-
-  min_diff
-}
-
-#' Optimize colors using GenSA
-#'
-#' @param clrs Vector of colors
-#' @param clr_idx Numerical index indicating which colors to adjust
-#' @param adj_params List of vectors containing parameters to use for adjusting
-#' colors.
-#' Each vector must include in this order, the colorspace, numeric index for
-#' column containing the color property to adjust, range of values to adjust.
-#' @param filts Color filters to apply when calculating color differences.
-#' @param gensa_params Named list with control parameters to pass to
-#' `GenSA::GenSA()`
-#' @noRd
-.run_gensa <- function(clrs, clr_idx, adj_params, filts = "none",
-                       gensa_params = list()) {
-
-  .gensa <- function(clrs, clr_idx, space, val_idx, range) {
-    dec_clrs  <- farver::decode_colour(clrs, to = space)
-    init_vals <- dec_clrs[clr_idx, val_idx]
-
-    range <- .parse_range(range, clrs, clr_idx)
-
-    res <- GenSA::GenSA(
-      par     = as.numeric(init_vals),
-      fn      = .sa_obj_fn,
-      lower   = range[[1]],
-      upper   = range[[2]],
-      control = gensa_params,
-
-      clrs     = clrs,
-      clr_idx  = clr_idx,
-      clr_filt = filts,
-      space    = space,
-      val_idx  = val_idx
-    )
-
-    res
-  }
-
-  min_diff <- 0
-
-  for (params in adj_params) {
-    optim <- .gensa(
-      clrs, clr_idx,
-      params[[1]], params[[2]], params[[3]]
-    )
-
-    if (-optim$value > min_diff) {
-      min_diff <- -optim$value
-
-      dec_clrs <- farver::decode_colour(clrs, to = params[[1]])
-
-      dec_clrs[clr_idx, params[[2]]] <- optim$par
-
-      clrs <- farver::encode_colour(dec_clrs, from = params[[1]])
-    }
-
-    if (min_diff > -gensa_params$threshold.stop) break()
-  }
-
-  # Return vector of hex colors and minimum difference
-  list(clrs, min_diff)
-}
-
-.parse_range <- function(range, colors, idx) {
-
-  if (is.list(range)) {
+  if (rlang::is_list(range)) {
     res <- purrr::map(range, ~ {
       if (length(.x) != length(colors)) {
         cli::cli_abort(
@@ -485,7 +457,7 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
     })
 
   } else {
-    if (length(range) != 2) {
+    if (!rlang::has_length(range, 2)) {
       cli::cli_abort(
         "If a single vector is provided for `range`,
          it should include two values, the lower and upper bounds."
@@ -508,11 +480,82 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
   res
 }
 
+#' Optimize colors using GenSA
+#'
+#' @param clrs Vector of colors
+#' @param clr_idx Numerical index indicating which colors to adjust
+#' @param adj_params List of vectors containing parameters to use for adjusting
+#' colors.
+#' Each vector must include in this order, the colorspace, numeric index for
+#' column containing the color property to adjust, range of values to adjust.
+#' @param method Method for comparing colors
+#' @param filts Color filters to apply when calculating color differences.
+#' @param gensa_params Named list with control parameters to pass to
+#' `GenSA::GenSA()`
+#' @noRd
+.run_gensa <- function(clrs, clr_idx, adj_params, method, filts = "none",
+                       gensa_params = list()) {
+
+  .gensa <- function(clrs, clr_idx, method, filts, space, val_idx, range) {
+    dec_clrs  <- farver::decode_colour(clrs, to = space)
+    init_vals <- dec_clrs[clr_idx, val_idx]
+
+    range <- .chk_range_args(range, clrs, clr_idx)
+
+    res <- GenSA::GenSA(
+      par     = as.numeric(init_vals),
+      fn      = .sa_obj_fn,
+      lower   = range[[1]],
+      upper   = range[[2]],
+      control = gensa_params,
+
+      clrs     = clrs,
+      clr_idx  = clr_idx,
+      method   = method,
+      clr_filt = filts,
+      space    = space,
+      val_idx  = val_idx
+    )
+
+    res
+  }
+
+  min_diff <- 0
+
+  for (params in adj_params) {
+    optim <- .gensa(
+      clrs    = clrs,
+      clr_idx = clr_idx,
+      method  = method,
+      filts   = filts,
+      space   = params[[1]],
+      val_idx = params[[2]],
+      range   = params[[3]]
+    )
+
+    if (-optim$value > min_diff) {
+      min_diff <- -optim$value
+
+      dec_clrs <- farver::decode_colour(clrs, to = params[[1]])
+
+      dec_clrs[clr_idx, params[[2]]] <- optim$par
+
+      clrs <- farver::encode_colour(dec_clrs, from = params[[1]])
+    }
+
+    if (min_diff > -gensa_params$threshold.stop) break()
+  }
+
+  # Return vector of hex colors and minimum difference
+  list(clrs, min_diff)
+}
+
 #' Objective function for optimizing colors
 #'
 #' @param values Vector of values to adjust, e.g. lightness values
 #' @param clrs Vector of colors
 #' @param clr_idx Numerical index indicating which colors to adjust
+#' @param method Method for comparing colors
 #' @param clr_filt Vector of color filters to apply when calculating color
 #' differences
 #' @param space Colorspace to use for decoding colors and adjusting color
@@ -520,7 +563,7 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
 #' @param val_idx Single numerical index indicating the column of the decoded
 #' color matrix containing the values to modify, e.g. 1 for lightness
 #' @noRd
-.sa_obj_fn <- function(values, clrs, clr_idx, clr_filt = "none",
+.sa_obj_fn <- function(values, clrs, clr_idx, method, clr_filt = "none",
                        space = "lab", val_idx = 1) {
 
   clrs <- farver::decode_colour(clrs, to = space)
@@ -530,7 +573,7 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
   clrs <- farver::encode_colour(clrs, from = space)
 
   # Calculate pairwise CIEDE2000 differences
-  dist_lst <- .compare_clrs(clrs, filt = clr_filt)
+  dist_lst <- .compare_clrs(clrs, method = method, filt = clr_filt)
   min_diff <- .get_min_dist(dist_lst, clr_idx, comparison = "idx_vs_all")
 
   -min_diff

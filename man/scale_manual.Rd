@@ -11,9 +11,10 @@ scale_colour_spruce(
   values = NULL,
   difference = 10,
   property = c("lightness", "hue"),
+  method = "CIE2000",
   range = NULL,
   filter = NULL,
-  resize_palette = TRUE,
+  resize = TRUE,
   adjust_colors = NULL,
   exclude_colors = NULL,
   maxit = 500,
@@ -29,7 +30,7 @@ scale_fill_spruce(
   property = c("lightness", "hue"),
   range = NULL,
   filter = NULL,
-  resize_palette = TRUE,
+  resize = TRUE,
   adjust_colors = NULL,
   exclude_colors = NULL,
   maxit = 500,
@@ -100,6 +101,13 @@ is greater than this threshold.}
 - "green", from RGB colorspace
 - "blue", from RGB colorspace}
 
+\item{method}{Method to use for comparing colors, can be one of:
+- "euclidian"
+- "CIE1976"
+- "CIE94"
+- "CIE2000"
+- "CMC"}
+
 \item{range}{A vector containing the minimum and maximum values to use when
 adjusting the specified color property.}
 
@@ -110,10 +118,10 @@ applying the filter.
 A vector can be passed to adjust based on multiple color filters.
 Possible values include, "none", "deutan", "protan", and "tritan".}
 
-\item{resize_palette}{Should provided color palette be resized based on the
+\item{resize}{Should provided color palette be resized based on the
 number of groups plotted.
 If `TRUE`, when too few or too many colors are provided,
-colors will be added using `ramp_colors()`,
+colors will be added using `interp_colors()`,
 or removed using `collapse_colors()`.}
 
 \item{adjust_colors}{Index indicating color(s) to specifically adjust.

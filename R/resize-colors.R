@@ -1,6 +1,7 @@
 #' Resize color palette
 #'
-#' Reduce or expand the number of colors in palette
+#' Reduce or expand the number of colors in palette, colors are removed with
+#' `collapse_colors()` and added with `interp_colors()`.
 #'
 #' @param colors Vector of colors
 #' @param n Number of colors to include in final color palette
@@ -8,14 +9,14 @@
 #' if `FALSE`, new colors are added to the end.
 #' @param ... Additional arguments to pass to `collapse_colors()`.
 #' @export
-resize_palette <- function(colors, n, order = TRUE, ...) {
+resize_colors <- function(colors, n, order = TRUE, ...) {
 
   n_clrs <- length(colors)
 
   if (n_clrs == n) return(colors)
 
   if (n > n_clrs) {
-    res <- ramp_colors(colors, n)
+    res <- interp_colors(colors, n)
 
   } else {
     res <- collapse_colors(colors, n, ...)
@@ -24,7 +25,7 @@ resize_palette <- function(colors, n, order = TRUE, ...) {
   res
 }
 
-#' Ramp colors
+#' Interpolate colors
 #'
 #' Insert additional colors into palette, this behaves similar to
 #' `scales::colour_ramp()`, but keeps all of the original colors in the
@@ -38,7 +39,7 @@ resize_palette <- function(colors, n, order = TRUE, ...) {
 #' if `FALSE` new colors are added to the end.
 #' @param ... Additional arguments to pass to `scales::colour_ramp()`
 #' @export
-ramp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
+interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
 
   # Calculate x for interpolation while preserving original colors
   # * for interpolation x is the position of the color in the palette and y
@@ -94,8 +95,7 @@ ramp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
 #' @param n Number of colors to include in final color palette
 #' @param filter Filter to apply to color palette when
 #' calculating pairwise differences.
-#' Colors will be adjusted to minimize the pairwise difference before and after
-#' applying the filter.
+#' Colors will be compared before and after applying the filter(s).
 #' A vector can be passed to adjust based on multiple color filters.
 #' Possible values include,
 #' - "colorblind", use deutan, protan, and tritan color blindness simulation
@@ -339,7 +339,7 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
 #' If `FALSE` colors will be selected starting with the first.
 #' @param order If `TRUE`, when colors are expanded new colors are interspersed.
 #' If `FALSE` new colors are added to the end.
-#' @param ... Additional arguments to pass to `resize_palette()`
+#' @param ... Additional arguments to pass to `resize_colors()`
 #' @export
 assign_colors <- function(colors, names, select_best = TRUE,
                           order = TRUE, ...) {
@@ -362,7 +362,7 @@ assign_colors <- function(colors, names, select_best = TRUE,
     colors <- colors[seq_len(n)]
   }
 
-  clrs <- resize_palette(colors, n, order = order, ...)
+  clrs <- resize_colors(colors, n, order = order, ...)
 
   res  <- purrr::set_names(clrs, names)
 
