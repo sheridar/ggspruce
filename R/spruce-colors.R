@@ -22,8 +22,8 @@
 #' - "CMC"
 #' @param range A vector containing the minimum and maximum values to use when
 #' adjusting colors.
-#' If multiple color properties will be adjusted, provide a list with ranges
-#' for each property.
+#' If multiple color properties will be adjusted, provide a named list with
+#' ranges for each property.
 #' @param filter Filter to apply to color palette when
 #' calculating pairwise differences.
 #' Colors will be adjusted to minimize the pairwise difference before and after
@@ -68,15 +68,25 @@ spruce_up_colors <- function(colors, difference = 10,
   # Set property arguments
   property <- .chk_prop_args(property, multi = TRUE)
 
-  adj_params <- SPACE_PARAMS[property]
+  prop_params <- SPACE_PARAMS[property]
 
+  # Set ranges for each property
+  # * structure of range is checked earlier by .chk_spruce_args()
+  # * if not named, assume length 2 and contains range for single color property
+  # * if not named, apply range to first color property
   if (!rlang::is_null(range)) {
-    if (rlang::is_vector(range)) range <- list(range)
+    if (rlang::is_list(range) && !rlang::is_null(names(range))) {
+      range <- range[names(prop_params)]
 
-    for (i in seq_along(adj_params)) {
-      if (i > length(range)) break()
+    } else {
+      range <- purrr::set_names(
+        list(range),
+        names(prop_params)[[1]]
+      )
+    }
 
-      adj_params[[i]][[3]] <- range[[i]]
+    for (prop in names(range)) {
+      prop_params[[prop]][[3]] <- range[[prop]]
     }
   }
 
@@ -130,7 +140,7 @@ spruce_up_colors <- function(colors, difference = 10,
     clrs         = colors,
     clr_idx      = clr_idx,
     method       = method,
-    adj_params   = adj_params,
+    prop_params  = prop_params,
     filts        = clr_filts,
     gensa_params = sa_params
   )
@@ -150,7 +160,7 @@ spruce_up_colors <- function(colors, difference = 10,
       clrs         = res,
       clr_idx      = full_idx,  # update to adjust all colors
       method       = method,
-      adj_params   = adj_params,
+      prop_params  = prop_params,
       filts        = clr_filts,
       gensa_params = sa_params
     )
@@ -350,12 +360,30 @@ SPACE_PARAMS <- list(
   }
 
   # Check range
+  # * if not named, then range is for a single property and should be length 2
+  # * could still be a list of vectors with upper and lower bound for each color
   if (!missing(range) && !rlang::is_null(range)) {
-    if (rlang::is_vector(range)) range <- list(range)
+    err <- function() {
+      cli::cli_abort("Provided ranges must include two numeric values.")
+    }
+
+    if (rlang::is_null(names(range)) || (rlang::is_vector(range) && !rlang::is_list(range))) {
+      range <- list(range)
+    }
+
+    colors_provided <- !missing(colors)
 
     purrr::walk(range, ~ {
-      if (!rlang::is_bare_numeric(.x) || !rlang::has_length(.x, 2)) {
-        cli::cli_abort("Provided ranges must include two numeric values.")
+      if (!rlang::has_length(.x, 2)) err()
+
+      # each upper/lower bound must be length 1, or a value for each color
+      if (colors_provided) {
+        purrr::walk(.x, ~ {
+          if (!rlang::has_length(.x, 1) && length(.x) != length(colors)) err
+        })
+
+      } else {
+        purrr::walk(.x, ~ if (!rlang::has_length(.x, 1)) err())
       }
     })
   }
@@ -484,8 +512,7 @@ SPACE_PARAMS <- list(
 #'
 #' @param clrs Vector of colors
 #' @param clr_idx Numerical index indicating which colors to adjust
-#' @param adj_params List of vectors containing parameters to use for adjusting
-#' colors.
+#' @param prop_params List of vectors containing parameters for color properties.
 #' Each vector must include in this order, the colorspace, numeric index for
 #' column containing the color property to adjust, range of values to adjust.
 #' @param method Method for comparing colors
@@ -493,7 +520,7 @@ SPACE_PARAMS <- list(
 #' @param gensa_params Named list with control parameters to pass to
 #' `GenSA::GenSA()`
 #' @noRd
-.run_gensa <- function(clrs, clr_idx, adj_params, method, filts = "none",
+.run_gensa <- function(clrs, clr_idx, prop_params, method, filts = "none",
                        gensa_params = list()) {
 
   .gensa <- function(clrs, clr_idx, method, filts, space, val_idx, range) {
@@ -522,7 +549,7 @@ SPACE_PARAMS <- list(
 
   min_diff <- 0
 
-  for (params in adj_params) {
+  for (params in prop_params) {
     optim <- .gensa(
       clrs    = clrs,
       clr_idx = clr_idx,

@@ -156,6 +156,7 @@ scale_color_spruce <- scale_colour_spruce
 #' @export
 scale_fill_spruce <- function(..., values = NULL, difference = 10,
                               property = c("lightness", "hue"),
+                              method = "CIE2000",
                               range = NULL, filter = NULL,
                               resize = TRUE, adjust_colors = NULL,
                               exclude_colors = NULL, maxit = 500,

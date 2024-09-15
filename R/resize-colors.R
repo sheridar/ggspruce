@@ -300,7 +300,7 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
   res <- get_property(new_clrs, property = property)
   res <- tibble::add_column(res, idx = idx)
   res <- res[order(res$idx, res[[property]]), ]
-  res <- stats::setNames(res$color, nms)
+  res <- purrr::set_names(res$color, nms)
 
   res
 }
