@@ -5,3 +5,4 @@
 ^README\.Rmd$
 ^R/*-dev.R$
 ^\.github$
+^LICENSE\.md$
