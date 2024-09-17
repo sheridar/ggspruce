@@ -24,7 +24,7 @@ knitr::opts_chunk$set(
 <!-- badges: end -->
 
 ggspruce provides functions that make automatic adjustments to ggplot2 plots
-to improve plot aesthetics.
+to improve aesthetics.
 
 ## Installation
 

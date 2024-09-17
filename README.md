@@ -11,7 +11,7 @@ coverage](https://codecov.io/gh/sheridar/ggspruce/graph/badge.svg)](https://app.
 <!-- badges: end -->
 
 ggspruce provides functions that make automatic adjustments to ggplot2
-plots to improve plot aesthetics.
+plots to improve aesthetics.
 
 ## Installation
 

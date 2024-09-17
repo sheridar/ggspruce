@@ -1,11 +1,11 @@
 Package: ggspruce
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Spruce up your plots
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Author: Ryan Sheridan
+Maintainer: Ryan Sheridan <ryan.sheridan@cuanschutz.edu>
+Description: ggspruce provides functions that make automatic adjustments to ggplot2 plots
+    to improve aesthetics.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -18,6 +18,7 @@ Imports:
     methods,
     purrr,
     rlang,
+    scales,
     tibble
 Suggests: 
     covr,
@@ -25,7 +26,6 @@ Suggests:
     knitr,
     MetBrewer,
     rmarkdown,
-    scales,
     testthat (>= 3.0.0)
 RoxygenNote: 7.3.2
 Config/testthat/edition: 3
