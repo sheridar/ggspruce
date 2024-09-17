@@ -44,8 +44,8 @@ is greater than this threshold.}
 
 \item{range}{A vector containing the minimum and maximum values to use when
 adjusting colors.
-If multiple color properties will be adjusted, provide a list with ranges
-for each property.}
+If multiple color properties will be adjusted, provide a named list with
+ranges for each property.}
 
 \item{filter}{Filter to apply to color palette when
 calculating pairwise differences.

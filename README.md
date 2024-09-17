@@ -4,6 +4,9 @@
 # ggspruce
 
 <!-- badges: start -->
+
+[![Codecov test
+coverage](https://codecov.io/gh/sheridar/ggspruce/graph/badge.svg)](https://app.codecov.io/gh/sheridar/ggspruce)
 <!-- badges: end -->
 
 ggspruce provides functions that make automatic adjustments to ggplot2

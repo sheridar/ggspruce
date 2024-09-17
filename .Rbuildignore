@@ -4,3 +4,4 @@
 ^\.Rproj\.user$
 ^README\.Rmd$
 ^R/*-dev.R$
+^\.github$

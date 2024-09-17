@@ -28,6 +28,7 @@ scale_fill_spruce(
   values = NULL,
   difference = 10,
   property = c("lightness", "hue"),
+  method = "CIE2000",
   range = NULL,
   filter = NULL,
   resize = TRUE,
