@@ -367,21 +367,26 @@ ggplot_add.ScaleDiscreteSpruce <- function(object, plot, object_name) {
     is_spruce <- methods::is(scale, "ScaleDiscreteSpruce")
 
     # Adjust colors from previous scale
+    # * only merge palettes if prev_scale is discrete
     # * first apply pal function from prev scale to generate color palette
     if (any(prev_aes) && is_spruce) {
-      prev_pal   <- self$scales[prev_aes][[1]]$palette
-      spruce_pal <- scale$spruce_palette
+      prev_scale <- self$scales[[prev_aes]]
 
-      new_pal <- function(n) {
-        values <- prev_pal(n)
-        pal    <- spruce_pal(n, values)
+      if (inherits(prev_scale, "ScaleDiscrete")) {
+        prev_pal   <- prev_scale$palette
+        spruce_pal <- scale$spruce_palette
 
-        pal
+        new_pal <- function(n) {
+          values <- prev_pal(n)
+          pal    <- spruce_pal(n, values)
+
+          pal
+        }
+
+        self$scales[prev_aes][[1]]$palette <- new_pal
+
+        scale <- NULL
       }
-
-      self$scales[prev_aes][[1]]$palette <- new_pal
-
-      scale <- NULL
 
     } else if (any(prev_aes)) {
       # Get only the first aesthetic name in the returned vector -- it can
