@@ -49,7 +49,7 @@
 #' @param ... Additional control parameters to pass to `GenSA::GenSA()`.
 #' @export
 spruce_up_colors <- function(colors, difference = 10,
-                             property = c("lightness", "hue"),
+                             property = "interp",
                              method = "CIE2000", range = NULL,
                              filter = NULL, adjust_colors = NULL,
                              exclude_colors = NULL, maxit = 500,
@@ -66,15 +66,17 @@ spruce_up_colors <- function(colors, difference = 10,
   )
 
   # Set property arguments
-  property <- .chk_prop_args(property, multi = TRUE)
-
+  interp      <- "interp" %in% property
+  property    <- .chk_prop_args(property, multi = TRUE)
   prop_params <- SPACE_PARAMS[property]
+
+  adj_prop <- length(prop_params) > 0
 
   # Set ranges for each property
   # * structure of range is checked earlier by .chk_spruce_args()
   # * if not named, assume length 2 and contains range for single color property
   # * if not named, apply range to first color property
-  if (!rlang::is_null(range)) {
+  if (adj_prop && !rlang::is_null(range)) {
     if (rlang::is_list(range) && !rlang::is_null(names(range))) {
       range <- range[names(prop_params)]
 
@@ -104,6 +106,9 @@ spruce_up_colors <- function(colors, difference = 10,
   #   meeting the difference threshold
   ex_idx <- .get_clr_idx(colors, exclude_colors)
 
+  full_idx <- seq_along(colors)
+  full_idx <- full_idx[!full_idx %in% ex_idx]
+
   if (!is.null(adjust_colors)) {
     clr_idx <- .get_clr_idx(colors, adjust_colors)
     clr_idx <- clr_idx[!clr_idx %in% ex_idx]
@@ -127,7 +132,7 @@ spruce_up_colors <- function(colors, difference = 10,
     if (length(clr_idx) == 0) return(colors)
   }
 
-  # Optimize colors
+  # SA parameters
   sa_params <- list(
     maxit = maxit,
     threshold.stop = -difference,
@@ -136,8 +141,53 @@ spruce_up_colors <- function(colors, difference = 10,
 
   sa_params$seed <- sa_params$seed %||% 42
 
-  optim_res <- .run_gensa(
-    clrs         = colors,
+  # Interpolate new colors
+  # * first only change similar colors then try changing all colors
+  res <- colors
+
+  if (interp) {
+    optim_res <- .run_gensa_interp(
+      clrs         = res,
+      clr_idx      = clr_idx,
+      method       = method,
+      filts        = clr_filts,
+      order        = FALSE,
+      scale        = FALSE,
+      gensa_params = sa_params
+    )
+
+    res      <- optim_res[[1]]
+    min_diff <- optim_res[[2]]
+
+    if (min_diff < difference && is.null(adjust_colors)) {
+      full_res <- .run_gensa_interp(
+        clrs         = res,
+        clr_idx      = full_idx,
+        method       = method,
+        filts        = clr_filts,
+        order        = TRUE,
+        scale        = FALSE,
+        gensa_params = sa_params
+      )
+
+      full_diff <- full_res[[2]]
+
+      if (full_diff > min_diff) {
+        res      <- full_res[[1]]
+        min_diff <- full_diff
+      }
+    }
+
+    if (min_diff >= difference || !adj_prop) {
+      .warn_diff(min_diff, difference)
+
+      return(res)
+    }
+  }
+
+  # Adjust color properties
+  optim_res <- .run_gensa_prop(
+    clrs         = res,
     clr_idx      = clr_idx,
     method       = method,
     prop_params  = prop_params,
@@ -156,7 +206,7 @@ spruce_up_colors <- function(colors, difference = 10,
     full_idx  <- seq_along(colors)
     full_idx  <- full_idx[!full_idx %in% ex_idx]
 
-    full_res <- .run_gensa(
+    full_res <- .run_gensa_prop(
       clrs         = res,
       clr_idx      = full_idx,  # update to adjust all colors
       method       = method,
@@ -173,15 +223,19 @@ spruce_up_colors <- function(colors, difference = 10,
     }
   }
 
+  # Return optimized colors
+  .warn_diff(min_diff, difference)
+
+  res
+}
+
+.warn_diff <- function(min_diff, difference) {
   if (min_diff < difference) {
     cli::cli_alert_info(c(
       "The minimum color difference for the adjusted palette ",
       "is {round(min_diff, 1)}, increase `maxit` to improve optimization."
     ))
   }
-
-  # Return optimized colors
-  res
 }
 
 #' Get color property
@@ -290,9 +344,11 @@ plot_colors <- function(colors, filter = NULL, label_size = 14,
 #' - "CIE94"
 #' - "CIE2000"
 #' - "CMC"
+#' @param return_mat Return matrix of minimum pairwise color differences for
+#' specified color filters.
 #' @export
 compare_colors <- function(colors, y = NULL, filter = NULL,
-                           method = "CIE2000") {
+                           method = "CIE2000", return_mat = FALSE) {
 
   .chk_spruce_args(colors = colors, method = method)
   .chk_spruce_args(colors = y)
@@ -305,6 +361,14 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
     filt   = filter,
     method = method
   )
+
+  if (return_mat) {
+    dst <- purrr::reduce(dst, pmin)
+
+    colnames(dst) <- rownames(dst) <- colors
+
+    return(dst)
+  }
 
   min_diff <- .get_min_dist(dst, only_upper_tri = is.null(y))
 
@@ -463,9 +527,11 @@ SPACE_PARAMS <- list(
 .chk_prop_args <- function(property, multi = TRUE) {
   res <- rlang::arg_match(
     property,
-    names(SPACE_PARAMS),
+    c("interp", names(SPACE_PARAMS)),
     multiple = multi
   )
+
+  res <- res[res != "interp"]
 
   res
 }
@@ -520,8 +586,51 @@ SPACE_PARAMS <- list(
 #' @param gensa_params Named list with control parameters to pass to
 #' `GenSA::GenSA()`
 #' @noRd
-.run_gensa <- function(clrs, clr_idx, prop_params, method, filts = "none",
-                       gensa_params = list()) {
+.run_gensa_interp <- function(clrs, clr_idx, method, filts = "none",
+                              order = FALSE, scale = FALSE,
+                              gensa_params = list()) {
+
+  # Set initial values
+  # * use random starting values for colors to be adjusted
+  clrs_x <- seq(0, 1, length.out = length(clrs))
+
+  init_vals <- clrs_x[clr_idx]
+
+  optim <- GenSA::GenSA(
+    par     = init_vals,
+    fn      = .sa_obj_interp,
+    lower   = rep(0, length(init_vals)),
+    upper   = rep(1, length(init_vals)),
+    control = gensa_params,
+
+    clrs     = clrs,
+    clr_idx  = clr_idx,
+    method   = method,
+    clr_filt = filts,
+    clrs_x   = clrs_x,
+    scale    = scale
+  )
+
+  # Color ramp function
+  ramp <- .get_ramp_fn(clrs, clrs_x)
+
+  # Get colors using adjusted x values
+  clrs_x[clr_idx] <- optim$par
+
+  if (scale) clrs_x <- (clrs_x - min(clrs_x)) / diff(range(clrs_x))
+
+  clrs <- ramp(clrs_x)
+
+  # Return vector of hex colors and minimum difference
+  if (order) clrs <- clrs[order(clrs_x, clrs)]
+
+  min_diff <- -optim$value
+
+  list(clrs, min_diff)
+}
+
+.run_gensa_prop <- function(clrs, clr_idx, prop_params, method, filts = "none",
+                            gensa_params = list()) {
 
   .gensa <- function(clrs, clr_idx, method, filts, space, val_idx, range) {
     dec_clrs  <- farver::decode_colour(clrs, to = space)
@@ -531,7 +640,7 @@ SPACE_PARAMS <- list(
 
     res <- GenSA::GenSA(
       par     = as.numeric(init_vals),
-      fn      = .sa_obj_fn,
+      fn      = .sa_obj_prop,
       lower   = range[[1]],
       upper   = range[[2]],
       control = gensa_params,
@@ -590,8 +699,32 @@ SPACE_PARAMS <- list(
 #' @param val_idx Single numerical index indicating the column of the decoded
 #' color matrix containing the values to modify, e.g. 1 for lightness
 #' @noRd
-.sa_obj_fn <- function(values, clrs, clr_idx, method, clr_filt = "none",
-                       space = "lab", val_idx = 1) {
+.sa_obj_interp <- function(values, clrs, clr_idx, method, clr_filt = "none",
+                           clrs_x, scale = FALSE) {
+
+  if (any(duplicated(values))) return(0)
+
+  # Format x for linear model
+  # * only use colors that are not changing
+  # * scale so values are all between 0 and 1
+  # * skip if any values are duplicated or an adjusted color is 0 or 1
+  ramp <- .get_ramp_fn(clrs, clrs_x)
+
+  clrs_x[clr_idx] <- values
+
+  if (scale) clrs_x <- (clrs_x - min(clrs_x)) / diff(range(clrs_x))
+
+  clrs <- ramp(clrs_x)
+
+  # Calculate pairwise CIEDE2000 differences
+  dist_lst <- .compare_clrs(clrs, method = method, filt = clr_filt)
+  min_diff <- .get_min_dist(dist_lst, clr_idx, comparison = "idx_vs_all")
+
+  -min_diff
+}
+
+.sa_obj_prop <- function(values, clrs, clr_idx, method, clr_filt = "none",
+                         space = "lab", val_idx = 1) {
 
   clrs <- farver::decode_colour(clrs, to = space)
 

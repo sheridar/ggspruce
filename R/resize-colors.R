@@ -50,31 +50,27 @@ interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
 
   if (n <= clrs_n) return(colors)
 
+  if (clrs_n < 2) cli::cli_abort("Must provide at least two colors.")
+
   x     <- seq.int(0, 1, length.out = clrs_n)
   new_x <- seq.int(0, 1, length.out = n)
 
   if (keep_original) {
-    ovlp  <- new_x[new_x %in% x]
-    new_x <- new_x[!new_x %in% ovlp]
-    dif_n <- length(new_x) - sum(!x %in% ovlp)
+    new_n <- (n - clrs_n) + 2
 
-    # Calculate difference between original and new x values
-    # * for the new colors select the ones that differ most
-    difs <- purrr::map_dbl(new_x, ~ min(abs(.x - x)))
+    new_idx <- seq(1, n, length.out = new_n)
+    new_idx <- floor(new_idx[-c(1, new_n)] + 0.5)  # want 0.5 to always round up
 
-    names(difs) <- seq_along(new_x)
-
-    difs <- sort(difs)
-    difs <- as.numeric(names(difs))
-
-    new_x <- new_x[utils::tail(difs, dif_n)]
-    new_x <- sort(c(x, new_x))
+    x <- new_x[-new_idx]
   }
 
-  # Get colorRamp function
+  # Generate ramp function
   # * this creates a function that can interpolate new colors using the original
   #   palette
-  ramp <- scales::colour_ramp(colors, ...)
+  # * modified version of scales::colour_ramp() that accepts input values for x
+  # * this allows new colors to be interspersed evenly between the original
+  #   colors
+  ramp <- .get_ramp_fn(colors, x)
 
   # Generate expanded color palette using x values
   res <- ramp(new_x)
@@ -84,6 +80,73 @@ interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
   }
 
   res
+}
+
+#' Modified version of scales::colour_ramp() that accepts input values for `x`
+#' This allows new colors to be interspersed evenly between the original colors
+.get_ramp_fn <- function(colors, x = NULL, na.color = NA, alpha = TRUE) {
+
+  if (length(colors) == 0) {
+    cli::cli_abort("Must provide at least one colour to create a colour ramp")
+  }
+
+  if (length(colors) == 1) {
+    return(
+      structure(
+        function(x) {
+          ifelse(is.na(x), na.color, colors)
+        },
+        safe_palette_func = TRUE
+      )
+    )
+  }
+
+  colors <- tolower(colors)
+
+  lab_in <- farver::decode_colour(
+    colour   = colors,
+    alpha    = TRUE,
+    to       = "lab",
+    na_value = "transparent"
+  )
+
+  # Set x values for interpolation
+  x_in <- seq(0, 1, length.out = length(colors))
+
+  if (!is.null(x)) {
+    if (length(x) != length(colors)) {
+      cli::cli_abort("`x` must be the same length as `colors`")
+    }
+
+    x_in <- x
+  }
+
+  l_interp <- stats::approxfun(x_in, lab_in[, 1])
+  u_interp <- stats::approxfun(x_in, lab_in[, 2])
+  v_interp <- stats::approxfun(x_in, lab_in[, 3])
+
+  if (!alpha || all(lab_in[, 4] == 1)) {
+    alpha_interp <- function(x) NULL
+
+  } else {
+    alpha_interp <- stats::approxfun(x_in, lab_in[, 4])
+  }
+
+  structure(
+    function(x) {
+      lab_out <- cbind(l_interp(x), u_interp(x), v_interp(x))
+
+      out <- farver::encode_colour(
+        lab_out,
+        alpha = alpha_interp(x),
+        from = "lab"
+      )
+
+      out[is.na(out)] <- na.color
+      out
+    },
+    safe_palette_func = TRUE
+  )
 }
 
 #' Collapse color palette
