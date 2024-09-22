@@ -54,7 +54,7 @@ clrs <- as.character(met.brewer("Austria", 15))
 plot_colors(clrs)
 ```
 
-The `spruce_up_colors()` function calculates the pairwise distance between
+The `spruce_colors()` function calculates the pairwise distance between
 colors in the palette, and identifies pairs of colors that are very similar.
 The difference threshold used to identify similar colors can be modified with
 the `difference` parameter, with higher values resulting in more distinct colors.
@@ -66,9 +66,9 @@ colors that do not meet the difference threshold.
 
 ```{r}
 new_clrs <- clrs |>
-  spruce_up_colors(
-    difference = 10,
-    property   = "lightness"
+  spruce_colors(
+    difference = 15,
+    property = "lightness",
   )
 
 plot_colors(new_clrs)
@@ -81,7 +81,7 @@ and/or increasing the difference threshold.
 
 ```{r}
 new_clrs <- clrs |>
-  spruce_up_colors(
+  spruce_colors(
     difference = 20,
     property   = c("lightness", "hue")
   )
@@ -159,7 +159,7 @@ library(RColorBrewer)
 clrs <- RColorBrewer::brewer.pal(10, "RdYlGn")
 
 new_clrs <- clrs |>
-  spruce_up_colors(
+  spruce_colors(
     difference = 15,
     property   = c("lightness", "saturation"),
     filter     = "deutan"
@@ -204,7 +204,7 @@ test_clrs |>
   plot_colors()
 
 test_clrs |>
-  spruce_up_colors() |>
+  spruce_colors() |>
   plot_colors()
 
 collapse_colors(test_clrs, n = n, exact = TRUE)

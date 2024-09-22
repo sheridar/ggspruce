@@ -43,22 +43,23 @@ plot_colors(clrs)
 
 <img src="man/figures/README-unnamed-chunk-2-1.png" width="100%" />
 
-The `spruce_up_colors()` function calculates the pairwise distance
-between colors in the palette, and identifies pairs of colors that are
-very similar. The difference threshold used to identify similar colors
-can be modified with the `difference` parameter, with higher values
-resulting in more distinct colors. The color palette is optimized by
-modifying the color attribute specified with the `adjust` parameter.
+The `spruce_colors()` function calculates the pairwise distance between
+colors in the palette, and identifies pairs of colors that are very
+similar. The difference threshold used to identify similar colors can be
+modified with the `difference` parameter, with higher values resulting
+in more distinct colors. The color palette is optimized by modifying the
+color attribute specified with the `adjust` parameter.
 
 In the example below, color lightness is automatically adjusted for sets
 of colors that do not meet the difference threshold.
 
 ``` r
 new_clrs <- clrs |>
-  spruce_up_colors(
-    difference = 10,
-    property   = "lightness"
+  spruce_colors(
+    difference = 15,
+    property = "lightness",
   )
+#> ℹ The minimum color difference for the adjusted palette is 14.3, increase `maxit` to improve optimization.
 
 plot_colors(new_clrs)
 ```
@@ -72,7 +73,7 @@ increasing the difference threshold.
 
 ``` r
 new_clrs <- clrs |>
-  spruce_up_colors(
+  spruce_colors(
     difference = 20,
     property   = c("lightness", "hue")
   )
@@ -157,7 +158,7 @@ library(RColorBrewer)
 clrs <- RColorBrewer::brewer.pal(10, "RdYlGn")
 
 new_clrs <- clrs |>
-  spruce_up_colors(
+  spruce_colors(
     difference = 15,
     property   = c("lightness", "saturation"),
     filter     = "deutan"

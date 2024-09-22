@@ -270,11 +270,11 @@ spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
 #' Create palette function to be used when modifying colors
 #'
 #' @param values Vector of colors
-#' @param filter Color filter to pass to `spruce_up_colors()` and
+#' @param filter Color filter to pass to `spruce_colors()` and
 #' `collapse_colors()`
 #' @param resize Should vector of colors be resized, passed to
-#' `spruce_up_colors()`
-#' @param ... Additional arguments to pass to `spruce_up_colors()`
+#' `spruce_colors()`
+#' @param ... Additional arguments to pass to `spruce_colors()`
 #' @noRd
 .create_spruce_pal <- function(values = NULL, filter = "none",
                                resize = TRUE, ...) {
@@ -315,8 +315,8 @@ spruce_scale <- function(aesthetic, values = NULL, breaks = ggplot2::waiver(),
     }
 
     # Pull first `n` colors, if `resize` is `FALSE` all colors will
-    # get passed to `spruce_up_colors`
-    values <- spruce_up_colors(
+    # get passed to `spruce_colors`
+    values <- spruce_colors(
       colors = values[seq_len(n)],
       filter = filter,
       ...

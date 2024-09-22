@@ -40,7 +40,7 @@ If `NULL` this will be automatically selected based on the starting colors.}
 \item{range}{A vector containing the minimum and maximum values to use when
 adjusting colors.}
 
-\item{...}{Additional arguments to pass to `spruce_up_colors()`.}
+\item{...}{Additional arguments to pass to `spruce_colors()`.}
 }
 \description{
 Create nested color palette

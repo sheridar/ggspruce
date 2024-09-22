@@ -4,7 +4,14 @@
 \alias{interp_colors}
 \title{Interpolate colors}
 \usage{
-interp_colors(colors, n, keep_original = TRUE, order = TRUE, ...)
+interp_colors(
+  colors,
+  n,
+  keep_original = TRUE,
+  order = TRUE,
+  before = NULL,
+  after = NULL
+)
 }
 \arguments{
 \item{colors}{Vector of colors}
@@ -17,10 +24,14 @@ palette}
 \item{order}{If `TRUE` colors are ordered with new colors interspersed,
 if `FALSE` new colors are added to the end.}
 
-\item{...}{Additional arguments to pass to `scales::colour_ramp()`}
+\item{before, after}{Numeric vector indicating the position in the original
+palette where new colors should be inserted.
+A position must be provided for each new color added.
+The default is to evenly distribute new colors throughout the original
+palette.}
 }
 \description{
 Insert additional colors into palette, this behaves similar to
-`scales::colour_ramp()`, but keeps all of the original colors in the
+`scales::colour_ramp()`, but keeps the original colors in the
 final palette.
 }

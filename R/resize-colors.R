@@ -28,7 +28,7 @@ resize_colors <- function(colors, n, order = TRUE, ...) {
 #' Interpolate colors
 #'
 #' Insert additional colors into palette, this behaves similar to
-#' `scales::colour_ramp()`, but keeps all of the original colors in the
+#' `scales::colour_ramp()`, but keeps the original colors in the
 #' final palette.
 #'
 #' @param colors Vector of colors
@@ -37,29 +37,54 @@ resize_colors <- function(colors, n, order = TRUE, ...) {
 #' palette
 #' @param order If `TRUE` colors are ordered with new colors interspersed,
 #' if `FALSE` new colors are added to the end.
-#' @param ... Additional arguments to pass to `scales::colour_ramp()`
+#' @param before,after Numeric vector indicating the position in the original
+#' palette where new colors should be inserted.
+#' A position must be provided for each new color added.
+#' The default is to evenly distribute new colors throughout the original
+#' palette.
 #' @export
-interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
+interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE,
+                          before = NULL, after = NULL) {
+
+  if (!rlang::is_null(before) || !rlang::is_null(after)) {
+    keep_original <- TRUE
+
+    if (sum(length(before), length(after)) != n) {
+      cli::cli_abort(
+        "When `before` and/or `after` are provided, a value must be specified
+         for each new color, i.e. the combined length of `before` and `after`
+         must be equal to `n - length(colors)`."
+      )
+    }
+  }
+
+  clrs_n <- length(colors)
+
+  if (n <= clrs_n) return(colors)
+
+  if (length(unique(colors)) < 2) {
+    cli::cli_abort("Must provide at least two unique colors.")
+  }
 
   # Calculate x for interpolation while preserving original colors
   # * for interpolation x is the position of the color in the palette and y
   #   is the l, a, or b value for each color
   # * need to keep x from original color palette so these colors will be
   #   present in the new color palette.
-  clrs_n <- length(colors)
-
-  if (n <= clrs_n) return(colors)
-
-  if (clrs_n < 2) cli::cli_abort("Must provide at least two colors.")
-
   x     <- seq.int(0, 1, length.out = clrs_n)
   new_x <- seq.int(0, 1, length.out = n)
 
   if (keep_original) {
-    new_n <- (n - clrs_n) + 2
+    if (!rlang::is_null(before) || !rlang::is_null(after)) {
+      new_pos <- sort(c(before - 0.5, after + 0.5))
+      new_idx <- sort(c(seq_len(clrs_n), new_pos))
+      new_idx <- match(new_pos, new_idx)
 
-    new_idx <- seq(1, n, length.out = new_n)
-    new_idx <- floor(new_idx[-c(1, new_n)] + 0.5)  # want 0.5 to always round up
+    } else {
+      new_n   <- (n - clrs_n) + 2
+      new_idx <- seq(1, n, length.out = new_n)
+      new_idx <- floor(new_idx[-c(1, new_n)] + 0.5)  # want 0.5 to always round up
+    }
 
     x <- new_x[-new_idx]
   }
@@ -80,73 +105,6 @@ interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE, ...) {
   }
 
   res
-}
-
-#' Modified version of scales::colour_ramp() that accepts input values for `x`
-#' This allows new colors to be interspersed evenly between the original colors
-.get_ramp_fn <- function(colors, x = NULL, na.color = NA, alpha = TRUE) {
-
-  if (length(colors) == 0) {
-    cli::cli_abort("Must provide at least one colour to create a colour ramp")
-  }
-
-  if (length(colors) == 1) {
-    return(
-      structure(
-        function(x) {
-          ifelse(is.na(x), na.color, colors)
-        },
-        safe_palette_func = TRUE
-      )
-    )
-  }
-
-  colors <- tolower(colors)
-
-  lab_in <- farver::decode_colour(
-    colour   = colors,
-    alpha    = TRUE,
-    to       = "lab",
-    na_value = "transparent"
-  )
-
-  # Set x values for interpolation
-  x_in <- seq(0, 1, length.out = length(colors))
-
-  if (!is.null(x)) {
-    if (length(x) != length(colors)) {
-      cli::cli_abort("`x` must be the same length as `colors`")
-    }
-
-    x_in <- x
-  }
-
-  l_interp <- stats::approxfun(x_in, lab_in[, 1])
-  u_interp <- stats::approxfun(x_in, lab_in[, 2])
-  v_interp <- stats::approxfun(x_in, lab_in[, 3])
-
-  if (!alpha || all(lab_in[, 4] == 1)) {
-    alpha_interp <- function(x) NULL
-
-  } else {
-    alpha_interp <- stats::approxfun(x_in, lab_in[, 4])
-  }
-
-  structure(
-    function(x) {
-      lab_out <- cbind(l_interp(x), u_interp(x), v_interp(x))
-
-      out <- farver::encode_colour(
-        lab_out,
-        alpha = alpha_interp(x),
-        from = "lab"
-      )
-
-      out[is.na(out)] <- na.color
-      out
-    },
-    safe_palette_func = TRUE
-  )
 }
 
 #' Collapse color palette
@@ -273,7 +231,7 @@ collapse_colors <- function(colors, n, filter = NULL, exact = NULL, ...) {
 #' If `NULL` this will be automatically selected based on the starting colors.
 #' @param range A vector containing the minimum and maximum values to use when
 #' adjusting colors.
-#' @param ... Additional arguments to pass to `spruce_up_colors()`.
+#' @param ... Additional arguments to pass to `spruce_colors()`.
 #' @export
 expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
                           property = "lightness", direction = NULL,
@@ -289,7 +247,7 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
 
   if (is.null(n) && is.null(names)) return(colors)
 
-  range <- range %||% SPACE_PARAMS[[property]][[3]]
+  range <- range %||% PROP_PARAMS[[property]][[3]]
 
   # Expand colors based on n
   nms <- NULL
@@ -357,35 +315,13 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
   spr_args$property      <- property
   spr_args$adjust_colors <- spr_args$adjust_colors %||% adj_clrs
 
-  new_clrs <- .lift(spruce_up_colors)(spr_args)
+  new_clrs <- .lift(spruce_colors)(spr_args)
 
   # Keep in original order with new colors sorted by lightness
   res <- get_property(new_clrs, property = property)
   res <- tibble::add_column(res, idx = idx)
   res <- res[order(res$idx, res[[property]]), ]
   res <- purrr::set_names(res$color, nms)
-
-  res
-}
-
-.set_range <- function(val, direction = NULL, rng) {
-
-  if (is.null(direction)) {
-    med <- floor(stats::median(rng))
-
-    direction <- ifelse(val <= med, 1, -1)
-  }
-
-  if (!direction %in% c(1, -1)) {
-    cli::cli_abort("`direction` must be either 1 or -1.")
-  }
-
-  if (direction == 1) {
-    res <- c(val, rng[2])
-
-  } else {
-    res <- c(rng[1], val)
-  }
 
   res
 }
@@ -448,6 +384,98 @@ sort_colors <- function(colors, property = "hue", desc = FALSE) {
   vals <- as.list(prop[property])
   idx  <- .lift(order, decreasing = desc)(vals)
   res  <- prop$color[idx]
+
+  res
+}
+
+#' Modified version of scales::colour_ramp() that accepts input values for `x`
+#' This allows new colors to be interspersed evenly between the original colors
+#' @noRd
+.get_ramp_fn <- function(colors, x = NULL, na.color = NA, alpha = TRUE) {
+
+  if (length(colors) == 0) {
+    cli::cli_abort("Must provide at least one colour to create a colour ramp")
+  }
+
+  if (length(colors) == 1) {
+    return(
+      structure(
+        function(x) {
+          ifelse(is.na(x), na.color, colors)
+        },
+        safe_palette_func = TRUE
+      )
+    )
+  }
+
+  colors <- tolower(colors)
+
+  lab_in <- farver::decode_colour(
+    colour   = colors,
+    alpha    = TRUE,
+    to       = "lab",
+    na_value = "transparent"
+  )
+
+  # Set x values for interpolation
+  x_in <- seq(0, 1, length.out = length(colors))
+
+  if (!is.null(x)) {
+    if (length(x) != length(colors)) {
+      cli::cli_abort("`x` must be the same length as `colors`")
+    }
+
+    x_in <- x
+  }
+
+  l_interp <- stats::approxfun(x_in, lab_in[, 1])
+  u_interp <- stats::approxfun(x_in, lab_in[, 2])
+  v_interp <- stats::approxfun(x_in, lab_in[, 3])
+
+  if (!alpha || all(lab_in[, 4] == 1)) {
+    alpha_interp <- function(x) NULL
+
+  } else {
+    alpha_interp <- stats::approxfun(x_in, lab_in[, 4])
+  }
+
+  structure(
+    function(x) {
+      lab_out <- cbind(l_interp(x), u_interp(x), v_interp(x))
+
+      out <- farver::encode_colour(
+        lab_out,
+        alpha = alpha_interp(x),
+        from = "lab"
+      )
+
+      out[is.na(out)] <- na.color
+      out
+    },
+    safe_palette_func = TRUE
+  )
+}
+
+#' Set ranges for expand_colors
+#' @noRd
+.set_range <- function(val, direction = NULL, rng) {
+
+  if (is.null(direction)) {
+    med <- floor(stats::median(rng))
+
+    direction <- ifelse(val <= med, 1, -1)
+  }
+
+  if (!direction %in% c(1, -1)) {
+    cli::cli_abort("`direction` must be either 1 or -1.")
+  }
+
+  if (direction == 1) {
+    res <- c(val, rng[2])
+
+  } else {
+    res <- c(rng[1], val)
+  }
 
   res
 }
