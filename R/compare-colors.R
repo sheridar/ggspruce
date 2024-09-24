@@ -27,6 +27,10 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
   .chk_spruce_args(colors = colors, method = method)
   .chk_spruce_args(colors = y)
 
+  up_tri <- is.null(y)
+
+  y <- y %||% colors
+
   filter <- .chk_filt_args(filter, multi = TRUE)
 
   dst <- .compare_clrs(
@@ -39,12 +43,13 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
   if (return_mat) {
     dst <- purrr::reduce(dst, pmin)
 
-    colnames(dst) <- rownames(dst) <- colors
+    rownames(dst) <- colors
+    colnames(dst) <- y
 
     return(dst)
   }
 
-  min_diff <- .get_min_dist(dst, only_upper_tri = is.null(y))
+  min_diff <- .get_min_dist(dst, only_upper_tri = up_tri)
 
   min_diff
 }

@@ -113,28 +113,34 @@ spruce_colors <- function(colors, difference = 10,
   full_idx <- seq_along(colors)
   full_idx <- full_idx[!full_idx %in% ex_idx]
 
+  clr_idx <- compare_colors(
+    colors     = colors,
+    filter     = clr_filts,
+    method     = method,
+    return_mat = TRUE
+  )
+
+  clr_idx <- which(
+    clr_idx < difference & upper.tri(clr_idx),
+    arr.ind = TRUE
+  )
+
+  clr_idx <- sort(unique(clr_idx[!clr_idx %in% ex_idx]))
+
+  # If adjust_colors are specified use intersection with clr_idx
   if (!is.null(adjust_colors)) {
-    clr_idx <- .get_clr_idx(colors, adjust_colors)
-    clr_idx <- clr_idx[!clr_idx %in% ex_idx]
+    adj_idx <- .get_clr_idx(colors, adjust_colors)
 
-  } else {
-    clr_idx <- purrr::map(clr_filts, ~ {
-      d <- .compare_clrs(colors, method = method, filt = .x)[[1]]
+    if (all(adj_idx %in% ex_idx)) {
+      cli::cli_abort(
+        "`adjust_colors` and `exclude_colors` must specify different colors."
+      )
+    }
 
-      # Check if all colors are identical
-      if (all(d == 0)) return(seq_along(colors))
-
-      # Identify pairs of colors that are similar
-      idx <- which(d < difference & upper.tri(d), arr.ind = TRUE)
-      idx <- idx[!idx %in% ex_idx]
-
-      unique(idx)
-    })
-
-    clr_idx <- purrr::reduce(clr_idx, unique)
-
-    if (length(clr_idx) == 0) return(colors)
+    clr_idx <- intersect(clr_idx, adj_idx)
   }
+
+  if (length(clr_idx) == 0) return(colors)
 
   # SA parameters
   sa_params <- list(
@@ -282,14 +288,16 @@ spruce_colors <- function(colors, difference = 10,
 
   if (scale) clrs_x <- (clrs_x - min(clrs_x)) / diff(range(clrs_x))
 
-  clrs <- ramp(clrs_x)
+  res <- ramp(clrs_x)
+
+  names(res) <- names(clrs)
 
   # Return vector of hex colors and minimum difference
-  if (order) clrs <- clrs[order(clrs_x, clrs)]
+  if (order) res <- res[order(clrs_x, res)]
 
   min_diff <- -optim$value
 
-  list(clrs, min_diff)
+  list(res, min_diff)
 }
 
 .run_gensa_prop <- function(clrs, clr_idx, prop_params, method, filts = "none",
