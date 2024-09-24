@@ -5,8 +5,8 @@
 #'
 #' @param colors Vector of colors
 #' @param n Number of colors to include in final color palette
-#' @param order If `TRUE`, when colors are expanded new colors are interspersed,
-#' if `FALSE`, new colors are added to the end.
+#' @param order If `TRUE` colors are ordered with new colors interspersed,
+#' if `FALSE` new colors are added to the end.
 #' @param ... Additional arguments to pass to `collapse_colors()`.
 #' @export
 resize_colors <- function(colors, n, order = TRUE, ...) {
@@ -336,8 +336,8 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
 #' @param select_best Select the most distinct colors when collapsing the
 #' palette.
 #' If `FALSE` colors will be selected starting with the first.
-#' @param order If `TRUE`, when colors are expanded new colors are interspersed.
-#' If `FALSE` new colors are added to the end.
+#' @param order If `TRUE` colors are ordered with new colors interspersed,
+#' if `FALSE` new colors are added to the end.
 #' @param ... Additional arguments to pass to `resize_colors()`
 #' @export
 assign_colors <- function(colors, names, select_best = TRUE,

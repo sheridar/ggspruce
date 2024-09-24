@@ -13,6 +13,7 @@ spruce_colors(
   filter = NULL,
   adjust_colors = NULL,
   exclude_colors = NULL,
+  order = FALSE,
   maxit = 500,
   ...
 )
@@ -71,6 +72,10 @@ those provided for `colors`.}
 palette.
 Should be an integer vector, or a character vector containing names matching
 those provided for `colors`.}
+
+\item{order}{If `TRUE`, when `property` is "interp" colors will be ordered
+based on the original palette.
+If `FALSE`, adjusted colors will remain in their original positions.}
 
 \item{maxit}{Maximum number of iterations to use when optimizing the color
 palette.

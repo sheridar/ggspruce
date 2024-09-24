@@ -15,8 +15,8 @@ assign_colors(colors, names, select_best = TRUE, order = TRUE, ...)
 palette.
 If `FALSE` colors will be selected starting with the first.}
 
-\item{order}{If `TRUE`, when colors are expanded new colors are interspersed.
-If `FALSE` new colors are added to the end.}
+\item{order}{If `TRUE` colors are ordered with new colors interspersed,
+if `FALSE` new colors are added to the end.}
 
 \item{...}{Additional arguments to pass to `resize_colors()`}
 }

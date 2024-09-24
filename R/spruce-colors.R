@@ -46,6 +46,9 @@
 #' palette.
 #' Should be an integer vector, or a character vector containing names matching
 #' those provided for `colors`.
+#' @param order If `TRUE`, when `property` is "interp" colors will be ordered
+#' based on the original palette.
+#' If `FALSE`, adjusted colors will remain in their original positions.
 #' @param maxit Maximum number of iterations to use when optimizing the color
 #' palette.
 #' Higher values will result in more optimal adjustments and a reduction in
@@ -56,7 +59,7 @@ spruce_colors <- function(colors, difference = 10,
                           property = "interp",
                           method = "CIE2000", range = NULL,
                           filter = NULL, adjust_colors = NULL,
-                          exclude_colors = NULL, maxit = 500,
+                          exclude_colors = NULL, order = FALSE, maxit = 500,
                           ...) {
 
   .chk_spruce_args(
@@ -127,6 +130,8 @@ spruce_colors <- function(colors, difference = 10,
 
   clr_idx <- sort(unique(clr_idx[!clr_idx %in% ex_idx]))
 
+  check_full <- is.null(adjust_colors) && any(!full_idx %in% clr_idx)
+
   # If adjust_colors are specified use intersection with clr_idx
   if (!is.null(adjust_colors)) {
     adj_idx <- .get_clr_idx(colors, adjust_colors)
@@ -153,6 +158,7 @@ spruce_colors <- function(colors, difference = 10,
 
   # Interpolate new colors
   # * first only change similar colors then try changing all colors
+  # * always order adjusted colors when all colors are adjusted
   res <- colors
 
   if (interp) {
@@ -161,7 +167,7 @@ spruce_colors <- function(colors, difference = 10,
       clr_idx      = clr_idx,
       method       = method,
       filts        = clr_filts,
-      order        = FALSE,
+      order        = order || all(full_idx %in% clr_idx),
       scale        = FALSE,
       gensa_params = sa_params
     )
@@ -169,7 +175,7 @@ spruce_colors <- function(colors, difference = 10,
     res      <- optim_res[[1]]
     min_diff <- optim_res[[2]]
 
-    if (min_diff < difference && is.null(adjust_colors)) {
+    if (check_full && min_diff < difference) {
       full_res <- .run_gensa_interp(
         clrs         = res,
         clr_idx      = full_idx,
@@ -212,7 +218,7 @@ spruce_colors <- function(colors, difference = 10,
   # * if difference not met, rerun and allow all colors to be adjusted
   # * do not do this when adjust_colors colors are passed
   # * use best solution from previous attempt
-  if (min_diff < difference && is.null(adjust_colors)) {
+  if (check_full && min_diff < difference) {
     full_idx  <- seq_along(colors)
     full_idx  <- full_idx[!full_idx %in% ex_idx]
 
@@ -281,6 +287,7 @@ spruce_colors <- function(colors, difference = 10,
   )
 
   # Color ramp function
+  # * color ramp is set using original colors
   ramp <- .get_ramp_fn(clrs, clrs_x)
 
   # Get colors using adjusted x values
@@ -379,9 +386,7 @@ spruce_colors <- function(colors, difference = 10,
   if (any(duplicated(values))) return(0)
 
   # Format x for linear model
-  # * only use colors that are not changing
-  # * scale so values are all between 0 and 1
-  # * skip if any values are duplicated or an adjusted color is 0 or 1
+  # * color ramp is set using original colors
   ramp <- .get_ramp_fn(clrs, clrs_x)
 
   clrs_x[clr_idx] <- values

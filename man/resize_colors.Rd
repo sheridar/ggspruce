@@ -11,8 +11,8 @@ resize_colors(colors, n, order = TRUE, ...)
 
 \item{n}{Number of colors to include in final color palette}
 
-\item{order}{If `TRUE`, when colors are expanded new colors are interspersed,
-if `FALSE`, new colors are added to the end.}
+\item{order}{If `TRUE` colors are ordered with new colors interspersed,
+if `FALSE` new colors are added to the end.}
 
 \item{...}{Additional arguments to pass to `collapse_colors()`.}
 }
