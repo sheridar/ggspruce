@@ -4,19 +4,54 @@
 \alias{resize_colors}
 \title{Resize color palette}
 \usage{
-resize_colors(colors, n, order = TRUE, ...)
+resize_colors(
+  colors,
+  n,
+  difference = 15,
+  method = "CIE2000",
+  filter = NULL,
+  order = TRUE,
+  maxit = 500,
+  ...
+)
 }
 \arguments{
 \item{colors}{Vector of colors}
 
 \item{n}{Number of colors to include in final color palette}
 
+\item{difference}{Color difference threshold to use for
+selecting distinct `colors`.}
+
+\item{method}{Method to use for comparing colors, can be one of:
+- "euclidian"
+- "CIE1976"
+- "CIE94"
+- "CIE2000"
+- "CMC"}
+
+\item{filter}{Filter to apply to color palette when
+calculating pairwise differences.
+A vector can be passed to adjust based on multiple color filters.
+Possible values include,
+- "colorblind", use deutan, protan, and tritan color blindness simulation
+  filters
+- "deutan"
+- "protan"
+- "tritan"}
+
 \item{order}{If `TRUE` colors are ordered with new colors interspersed,
 if `FALSE` new colors are added to the end.}
 
-\item{...}{Additional arguments to pass to `collapse_colors()`.}
+\item{maxit}{Maximum number of iterations to use when optimizing the color
+palette.
+Higher values will result in more optimal adjustments and a reduction in
+speed.}
+
+\item{...}{Additional arguments to pass to `collapse_colors()` or
+`spruce_colors()`.}
 }
 \description{
-Reduce or expand the number of colors in palette, colors are removed with
+Remove or add colors to the palette, colors are removed with
 `collapse_colors()` and added with `interp_colors()`.
 }

@@ -21,7 +21,7 @@ spruce_colors(
 \arguments{
 \item{colors}{Character vector of colors to adjust}
 
-\item{difference}{Color difference threshold (CIE200 score) to use for
+\item{difference}{Color difference threshold to use for
 adjusting `colors`.
 Colors will be adjusted so the minimum pairwise difference
 is greater than this threshold.}
@@ -36,6 +36,7 @@ is greater than this threshold.}
 - "b", from LAB colorspace
 - "hue", from HSL colorspace
 - "saturation", from HSL colorspace
+- "lightness-2", from HSL colorspace
 - "red", from RGB colorspace
 - "green", from RGB colorspace
 - "blue", from RGB colorspace}

@@ -115,6 +115,7 @@ subset_colors <- function(colors, ..., method = "CIE2000", filter = NULL) {
 #' - "b", from LAB colorspace
 #' - "hue", from HSL colorspace
 #' - "saturation", from HSL colorspace
+#' - "lightness-2", from HSL colorspace
 #' - "red", from RGB colorspace
 #' - "green", from RGB colorspace
 #' - "blue", from RGB colorspace

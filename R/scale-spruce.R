@@ -370,7 +370,7 @@ ggplot_add.ScaleDiscreteSpruce <- function(object, plot, object_name) {
     # * only merge palettes if prev_scale is discrete
     # * first apply pal function from prev scale to generate color palette
     if (any(prev_aes) && is_spruce) {
-      prev_scale <- self$scales[[prev_aes]]
+      prev_scale <- self$scales[prev_aes][[1]]
 
       if (inherits(prev_scale, "ScaleDiscrete")) {
         prev_pal   <- prev_scale$palette

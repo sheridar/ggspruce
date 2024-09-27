@@ -1,25 +1,71 @@
 #' Resize color palette
 #'
-#' Reduce or expand the number of colors in palette, colors are removed with
+#' Remove or add colors to the palette, colors are removed with
 #' `collapse_colors()` and added with `interp_colors()`.
 #'
 #' @param colors Vector of colors
 #' @param n Number of colors to include in final color palette
+#' @param difference Color difference threshold to use for
+#' selecting distinct `colors`.
+#' @param method Method to use for comparing colors, can be one of:
+#' - "euclidian"
+#' - "CIE1976"
+#' - "CIE94"
+#' - "CIE2000"
+#' - "CMC"
+#' @param filter Filter to apply to color palette when
+#' calculating pairwise differences.
+#' A vector can be passed to adjust based on multiple color filters.
+#' Possible values include,
+#' - "colorblind", use deutan, protan, and tritan color blindness simulation
+#'   filters
+#' - "deutan"
+#' - "protan"
+#' - "tritan"
 #' @param order If `TRUE` colors are ordered with new colors interspersed,
 #' if `FALSE` new colors are added to the end.
-#' @param ... Additional arguments to pass to `collapse_colors()`.
+#' @param maxit Maximum number of iterations to use when optimizing the color
+#' palette.
+#' Higher values will result in more optimal adjustments and a reduction in
+#' speed.
+#' @param ... Additional arguments to pass to `collapse_colors()` or
+#' `spruce_colors()`.
 #' @export
-resize_colors <- function(colors, n, order = TRUE, ...) {
+resize_colors <- function(colors, n, difference = 15, method = "CIE2000",
+                          filter = NULL, order = TRUE, maxit = 500, ...) {
 
   n_clrs <- length(colors)
 
   if (n_clrs == n) return(colors)
 
   if (n > n_clrs) {
-    res <- interp_colors(colors, n)
+    res <- interp_colors(colors, n, order = TRUE)
+
+    ex_idx <- match(colors, res)
+
+    res <- spruce_colors(
+      res,
+      difference     = difference,
+      property       = "interp",
+      method         = method,
+      filter         = filter,
+      exclude_colors = ex_idx,
+      order          = TRUE,
+      maxit          = maxit,
+      ...
+    )
+
+    if (!order) res <- c(colors, res[!res %in% colors])
 
   } else {
-    res <- collapse_colors(colors, n, ...)
+    res <- collapse_colors(
+      colors, n,
+      difference = difference,
+      method     = method,
+      filter     = filter,
+      maxit      = maxit,
+      ...
+    )
   }
 
   res
@@ -114,6 +160,14 @@ interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE,
 #'
 #' @param colors Vector of colors
 #' @param n Number of colors to include in final color palette
+#' @param difference Color difference threshold to use for
+#' selecting distinct `colors`.
+#' @param method Method to use for comparing colors, can be one of:
+#' - "euclidian"
+#' - "CIE1976"
+#' - "CIE94"
+#' - "CIE2000"
+#' - "CMC"
 #' @param filter Filter to apply to color palette when
 #' calculating pairwise differences.
 #' Colors will be compared before and after applying the filter(s).
@@ -133,10 +187,15 @@ interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE,
 #' solutions.
 #' If `NULL` the approximate approach will be used except when the number of
 #' possible solutions is relatively small.
+#' @param maxit Maximum number of iterations to use when optimizing the color
+#' palette.
+#' Higher values will result in more optimal adjustments and a reduction in
+#' speed.
 #' @param ... Additional parameters to control the simulated annealing
 #' algorithm implemented with `GenSA::GenSA()`.
 #' @export
-collapse_colors <- function(colors, n, filter = NULL, exact = NULL, ...) {
+collapse_colors <- function(colors, n, difference = 15, method = "CIE2000",
+                            filter = NULL, exact = NULL, maxit = 500, ...) {
 
   .chk_spruce_args(colors = colors, n = n, exact = exact)
 
@@ -145,7 +204,7 @@ collapse_colors <- function(colors, n, filter = NULL, exact = NULL, ...) {
   filter <- .chk_filt_args(filter, multi = TRUE)
 
   # Calculate pairwise differences
-  dst <- .compare_clrs(colors, filt = filter)
+  dst <- .compare_clrs(colors, filt = filter, method = method)
 
   # Use exhaustive approach for smaller number of possible combinations
   max_combns <- 1e5
@@ -194,9 +253,10 @@ collapse_colors <- function(colors, n, filter = NULL, exact = NULL, ...) {
   lower     <- as.numeric(rep(1, n))
   upper     <- as.numeric(rep(length(colors), n))
 
-  gensa_params       <- list(...)
-  gensa_params$maxit <- gensa_params$maxit %||% 1000
-  gensa_params$seed  <- gensa_params$seed %||% 42
+  gensa_params                <- list(...)
+  gensa_params$maxit          <- maxit
+  gensa_params$threshold.stop <- -difference
+  gensa_params$seed           <- gensa_params$seed  %||% 42
 
   gensa_res <- GenSA::GenSA(
     par      = as.numeric(init_vals),

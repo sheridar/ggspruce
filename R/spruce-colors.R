@@ -1,7 +1,7 @@
 #' Adjust colors based on similarity
 #'
 #' @param colors Character vector of colors to adjust
-#' @param difference Color difference threshold (CIE200 score) to use for
+#' @param difference Color difference threshold to use for
 #' adjusting `colors`.
 #' Colors will be adjusted so the minimum pairwise difference
 #' is greater than this threshold.
@@ -15,6 +15,7 @@
 #' - "b", from LAB colorspace
 #' - "hue", from HSL colorspace
 #' - "saturation", from HSL colorspace
+#' - "lightness-2", from HSL colorspace
 #' - "red", from RGB colorspace
 #' - "green", from RGB colorspace
 #' - "blue", from RGB colorspace
@@ -271,6 +272,12 @@ spruce_colors <- function(colors, difference = 10,
 
   init_vals <- clrs_x[clr_idx]
 
+  # Set saturation limits
+  sat_lims <- get_property(clrs, property = "saturation")
+  sat_lims <- range(sat_lims$saturation)
+  sat_lims <- c(min(sat_lims[1], 15), 100)
+
+  # Run optimization
   optim <- GenSA::GenSA(
     par     = init_vals,
     fn      = .sa_obj_interp,
@@ -283,7 +290,8 @@ spruce_colors <- function(colors, difference = 10,
     method   = method,
     clr_filt = filts,
     clrs_x   = clrs_x,
-    scale    = scale
+    scale    = scale,
+    sat_lims = sat_lims
   )
 
   # Color ramp function
@@ -291,7 +299,7 @@ spruce_colors <- function(colors, difference = 10,
   ramp <- .get_ramp_fn(clrs, clrs_x)
 
   # Get colors using adjusted x values
-  clrs_x[clr_idx] <- optim$par
+  clrs_x[clr_idx] <- sort(optim$par)
 
   if (scale) clrs_x <- (clrs_x - min(clrs_x)) / diff(range(clrs_x))
 
@@ -381,7 +389,7 @@ spruce_colors <- function(colors, difference = 10,
 #' color matrix containing the values to modify, e.g. 1 for lightness
 #' @noRd
 .sa_obj_interp <- function(values, clrs, clr_idx, method, clr_filt = "none",
-                           clrs_x, scale = FALSE) {
+                           clrs_x, scale = FALSE, sat_lims = c(0, 100)) {
 
   if (any(duplicated(values))) return(0)
 
@@ -394,6 +402,14 @@ spruce_colors <- function(colors, difference = 10,
   if (scale) clrs_x <- (clrs_x - min(clrs_x)) / diff(range(clrs_x))
 
   clrs <- ramp(clrs_x)
+
+  # Check saturation
+  # * prevent colors from being returned that have saturation values outside the
+  #   starting palette
+  sat <- get_property(clrs, "saturation")
+  sat <- range(sat$saturation)
+
+  if (sat[1] < sat_lims[1] || sat[2] > sat_lims[2]) return(0)
 
   # Calculate pairwise CIEDE2000 differences
   dist_lst <- .compare_clrs(clrs, method = method, filt = clr_filt)
@@ -506,14 +522,15 @@ spruce_colors <- function(colors, difference = 10,
 #' matrix, and default range.
 #' @noRd
 PROP_PARAMS <- list(
-  lightness  = list("lab", 1, c(20, 80)),
-  a          = list("lab", 2, c(-128, 127)),
-  b          = list("lab", 3, c(-128, 127)),
-  hue        = list("hsl", 1, c(0, 360)),
-  saturation = list("hsl", 2, c(0, 100)),
-  red        = list("rgb", 1, c(0, 255)),
-  green      = list("rgb", 2, c(0, 255)),
-  blue       = list("rgb", 3, c(0, 255))
+  lightness     = list("lab", 1, c(20, 80)),
+  a             = list("lab", 2, c(-128, 127)),
+  b             = list("lab", 3, c(-128, 127)),
+  hue           = list("hsl", 1, c(0, 360)),
+  saturation    = list("hsl", 2, c(0, 100)),
+  `lightness-2` = list("hsl", 3, c(20, 80)),
+  red           = list("rgb", 1, c(0, 255)),
+  green         = list("rgb", 2, c(0, 255)),
+  blue          = list("rgb", 3, c(0, 255))
 )
 
 .properties <- names(PROP_PARAMS)

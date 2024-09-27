@@ -4,12 +4,31 @@
 \alias{collapse_colors}
 \title{Collapse color palette}
 \usage{
-collapse_colors(colors, n, filter = NULL, exact = NULL, ...)
+collapse_colors(
+  colors,
+  n,
+  difference = 15,
+  method = "CIE2000",
+  filter = NULL,
+  exact = NULL,
+  maxit = 500,
+  ...
+)
 }
 \arguments{
 \item{colors}{Vector of colors}
 
 \item{n}{Number of colors to include in final color palette}
+
+\item{difference}{Color difference threshold to use for
+selecting distinct `colors`.}
+
+\item{method}{Method to use for comparing colors, can be one of:
+- "euclidian"
+- "CIE1976"
+- "CIE94"
+- "CIE2000"
+- "CMC"}
 
 \item{filter}{Filter to apply to color palette when
 calculating pairwise differences.
@@ -31,6 +50,11 @@ an exact solution. This will be slow when there is a large number of possible
 solutions.
 If `NULL` the approximate approach will be used except when the number of
 possible solutions is relatively small.}
+
+\item{maxit}{Maximum number of iterations to use when optimizing the color
+palette.
+Higher values will result in more optimal adjustments and a reduction in
+speed.}
 
 \item{...}{Additional parameters to control the simulated annealing
 algorithm implemented with `GenSA::GenSA()`.}
