@@ -47,19 +47,15 @@ The `spruce_colors()` function calculates the pairwise distance between
 colors in the palette, and identifies pairs of colors that are very
 similar. The difference threshold used to identify similar colors can be
 modified with the `difference` parameter, with higher values resulting
-in more distinct colors. The color palette is optimized by modifying the
-color attribute specified with the `adjust` parameter.
+in colors that are more distinct. How colors are modified can be
+controlled using the `property` parameter.
 
-In the example below, color lightness is automatically adjusted for sets
-of colors that do not meet the difference threshold.
+By default, new colors are interpolated based on the other colors on the
+palette.
 
 ``` r
 new_clrs <- clrs |>
-  spruce_colors(
-    difference = 15,
-    property = "lightness",
-  )
-#> ℹ The minimum color difference for the adjusted palette is 14.3, increase `maxit` to improve optimization.
+  spruce_colors(difference = 10)
 
 plot_colors(new_clrs)
 ```
@@ -68,8 +64,10 @@ plot_colors(new_clrs)
 
 <br>
 
-The colors can be made more distinct by also modifying the hue and/or
-increasing the difference threshold.
+One or more color properties can also be specified to limit how the
+colors are adjusted. If the example below lightness is first adjusted,
+if the resulting colors still do not meet the difference threshold, the
+hue is adjusted.
 
 ``` r
 new_clrs <- clrs |>
@@ -121,7 +119,7 @@ plt2 <- plt +
   ggtitle("adjusted")
 
 plot_grid(plt1, plt2, nrow = 1)
-#> ℹ The minimum color difference for the adjusted palette is 23.1, increase `maxit` to improve optimization.
+#> ℹ The minimum color difference for the adjusted palette is 23, increase `maxit` to improve optimization.
 ```
 
 <img src="man/figures/README-unnamed-chunk-5-1.png" width="100%" />
@@ -163,7 +161,7 @@ new_clrs <- clrs |>
     property   = c("lightness", "saturation"),
     filter     = "deutan"
   )
-#> ℹ The minimum color difference for the adjusted palette is 14, increase `maxit` to improve optimization.
+#> ℹ The minimum color difference for the adjusted palette is 12.9, increase `maxit` to improve optimization.
 
 # Plot adjusted colors without filter
 plt1 <- clrs |>
