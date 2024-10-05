@@ -163,6 +163,12 @@ spruce_colors <- function(colors, difference = 10,
   res <- colors
 
   if (interp) {
+    if (length(unique(res)) == 1) {
+      cli::cli_abort(
+        "Must provide at least two unique colors when `property` is 'interp'"
+      )
+    }
+
     optim_res <- .run_gensa_interp(
       clrs         = res,
       clr_idx      = clr_idx,
