@@ -199,77 +199,129 @@ interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE,
 collapse_colors <- function(colors, n, difference = 15, method = "CIE2000",
                             filter = NULL, exact = NULL, maxit = 500, ...) {
 
+  # Check arguments
   .chk_spruce_args(colors = colors, n = n, exact = exact)
 
   if (n >= length(colors)) return(colors)
 
+  if (n == 1) cli::cli_abort("`n` must be greater than 1.")
+
   filter <- .chk_filt_args(filter, multi = TRUE)
 
+  # Check for duplicated colors
+  # * identify best duplicated colors to add
+  uniq_clrs  <- unique(colors)
+  uniq_n     <- min(length(uniq_clrs), n)
+  needs_dups <- n > uniq_n
+
+  if (length(uniq_clrs) == 1) {
+    cli::cli_abort("Must provide at least two unique colors.")
+  }
+
   # Calculate pairwise differences
-  dst <- .compare_clrs(colors, filt = filter, method = method)
+  dst <- .compare_clrs(uniq_clrs, filt = filter, method = method)
 
   # Use exhaustive approach for smaller number of possible combinations
   max_combns <- 1e5
-  n_combns   <- choose(length(colors), n)
+  n_combns   <- choose(length(uniq_clrs), uniq_n)
   exact      <- exact %||% (n_combns < max_combns)
 
   if (exact) {
     if (n_combns >= max_combns) {
       cli::cli_alert_warning(
         "There is a large number of possible solutions ({n_combns}),
-       set `exact` to `FALSE` to return an approximate solution."
+         set `exact` to `FALSE` to return an approximate solution."
       )
     }
 
-    combns <- utils::combn(seq_along(colors), m = n, simplify = FALSE)
+    combns <- utils::combn(seq_along(uniq_clrs), m = uniq_n, simplify = FALSE)
 
     res <- purrr::map_dbl(combns, ~ {
       .get_min_dist(dst, .x, comparison = "idx_vs_idx")
     })
 
     res <- combns[[which.max(res)]]
-    res <- colors[res]
-
-    return(res)
-  }
+    res <- uniq_clrs[res]
 
   # Using GenSA
-  .obj_fn <- function(values, dist_lst) {
-    values <- floor(values)
+  } else {
+    .obj_fn <- function(values, dist_lst) {
+      values <- floor(values)
 
-    if (any(duplicated(values))) {
-      min_diff <- 0
+      if (any(duplicated(values))) {
+        min_diff <- 0
 
-    } else {
-      min_diff <- .get_min_dist(
-        dist_lst   = dist_lst,
-        clr_idx    = values,
-        comparison = "idx_vs_idx"
-      )
+      } else {
+        min_diff <- .get_min_dist(
+          dist_lst   = dist_lst,
+          clr_idx    = values,
+          comparison = "idx_vs_idx"
+        )
+      }
+
+      -min_diff
     }
 
-    -min_diff
+    init_vals <- as.numeric(seq_len(uniq_n))
+    lower     <- as.numeric(rep(1, uniq_n))
+    upper     <- as.numeric(rep(length(uniq_clrs), uniq_n))
+
+    gensa_params                <- list(...)
+    gensa_params$maxit          <- maxit
+    gensa_params$threshold.stop <- -difference
+    gensa_params$seed           <- gensa_params$seed %||% 42
+
+    gensa_res <- GenSA::GenSA(
+      par      = as.numeric(init_vals),
+      fn       = .obj_fn,
+      lower    = lower,
+      upper    = upper,
+      control  = gensa_params,
+      dist_lst = dst
+    )
+
+    res <- uniq_clrs[sort(floor(gensa_res$par))]
   }
 
-  init_vals <- as.numeric(seq_len(n))
-  lower     <- as.numeric(rep(1, n))
-  upper     <- as.numeric(rep(length(colors), n))
+  # Add duplicate colors if needed
+  if (needs_dups) {
+    dups <- colors[duplicated(colors)]
 
-  gensa_params                <- list(...)
-  gensa_params$maxit          <- maxit
-  gensa_params$threshold.stop <- -difference
-  gensa_params$seed           <- gensa_params$seed  %||% 42
+    dups_n <- n - uniq_n
 
-  gensa_res <- GenSA::GenSA(
-    par      = as.numeric(init_vals),
-    fn       = .obj_fn,
-    lower    = lower,
-    upper    = upper,
-    control  = gensa_params,
-    dist_lst = dst
-  )
+    if (any(!uniq_clrs %in% dups)) {
+      dups <- compare_colors(
+        dups,
+        uniq_clrs[!uniq_clrs %in% dups],
+        filter = filter,
+        method = method
+      )
 
-  res <- colors[sort(floor(gensa_res$par))]
+    } else {
+      dups <- compare_colors(dups, filter = filter, method = method)
+    }
+
+    dups <- names(sort(dups, decreasing = TRUE))
+    dups <- dups[seq_len(dups_n)]
+
+    res <- c(res, dups)
+
+    # Sort final colors in order of input colors
+    sort_idx <- purrr::map(purrr::set_names(res), ~ {
+      idx <- which(colors == .x)
+      idx[seq_len(sum(res == .x))]
+    })
+
+    sort_idx <- sort_idx[!duplicated(names(sort_idx))]
+
+    res <- vector("character")
+
+    for (clr in names(sort_idx)) {
+      res[sort_idx[[clr]]] <- clr
+    }
+
+    res <- res[!is.na(res)]
+  }
 
   res
 }
