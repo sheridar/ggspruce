@@ -1,11 +1,4 @@
 
-dat <- ggplot2::diamonds
-
-clrs <- c(
-  "#52271C", "#8A4334", "#B37A39", "#9A823A",
-  "#6D6C38", "#445638", "#144443", "#022A2A"
-)
-
 test_that("check difference 1", {
   new_clrs <- clrs |>
     spruce_colors(difference = 10)

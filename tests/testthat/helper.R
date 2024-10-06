@@ -1,3 +1,11 @@
+#' Test data
+dat <- ggplot2::diamonds
+
+clrs <- c(
+  "#52271C", "#8A4334", "#B37A39", "#9A823A",
+  "#6D6C38", "#445638", "#144443", "#022A2A"
+)
+
 #' Helper to test all combinations of provided arguments
 #'
 #' @param arg_lst Named list of arguments to test
