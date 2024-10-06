@@ -21,8 +21,8 @@
 #' @param return_mat Return matrix of minimum pairwise color differences for
 #' specified color filters.
 #' @export
-compare_colors <- function(colors, y = NULL, filter = NULL,
-                           method = "CIE2000", return_mat = FALSE) {
+compare_colors <- function(colors, y = NULL, filter = NULL, method = "CIE2000",
+                           return_mat = FALSE, names = TRUE) {
 
   .chk_spruce_args(colors = colors, method = method)
   .chk_spruce_args(colors = y)
@@ -43,13 +43,31 @@ compare_colors <- function(colors, y = NULL, filter = NULL,
   if (return_mat) {
     dst <- purrr::reduce(dst, pmin)
 
-    rownames(dst) <- colors
-    colnames(dst) <- y
+    if (names) {
+      rownames(dst) <- y
+      colnames(dst) <- colors
+    }
 
     return(dst)
   }
 
-  min_diff <- .get_min_dist(dst, only_upper_tri = up_tri)
+  # Calc min difference for each color
+  if (up_tri) {
+    min_diff <- purrr::map_dbl(seq_along(colors), ~ {
+      .get_min_dist(
+        dst,
+        clr_idx = .x,
+        only_upper_tri = TRUE
+      )
+    })
+
+  } else {
+    dst <- purrr::reduce(dst, pmin)
+
+    min_diff <- purrr::map_dbl(seq_along(colors), ~ min(dst[, .x]))
+  }
+
+  if (names) names(min_diff) <- colors
 
   min_diff
 }
@@ -214,8 +232,8 @@ plot_colors <- function(colors, filter = NULL, label_size = 14,
     }
 
     farver::compare_colour(
-      from       = filt_clrs,
-      to         = filt_clrs2,
+      from       = filt_clrs2 %||% filt_clrs,
+      to         = filt_clrs,
       from_space = "lab",
       method     = method
     )
