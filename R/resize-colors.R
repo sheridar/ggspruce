@@ -95,7 +95,7 @@ interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE,
   if (!rlang::is_null(before) || !rlang::is_null(after)) {
     keep_original <- TRUE
 
-    if (sum(length(before), length(after)) != n) {
+    if (sum(length(before), length(after)) != (n - length(colors))) {
       cli::cli_abort(
         "When `before` and/or `after` are provided, a value must be specified
          for each new color, i.e. the combined length of `before` and `after`
@@ -124,7 +124,9 @@ interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE,
     if (!rlang::is_null(before) || !rlang::is_null(after)) {
       new_pos <- sort(c(before - 0.5, after + 0.5))
       new_idx <- sort(c(seq_len(clrs_n), new_pos))
-      new_idx <- match(new_pos, new_idx)
+
+      new_idx <- purrr::map(new_pos, ~ which(new_idx == .x))
+      new_idx <- unique(c(new_idx, recursive = TRUE))
 
     } else {
       new_n   <- (n - clrs_n) + 2
