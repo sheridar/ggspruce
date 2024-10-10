@@ -65,7 +65,7 @@ test_that("distinct colors", {
 
 # Named range
 test_that("check range 1", {
-  rng <- c(0, 20)
+  rng <- c(0, 10)
 
   new_clrs <- clrs |>
     spruce_colors(
@@ -81,6 +81,8 @@ test_that("check range 1", {
 
   lt <- range(lt[sim, 2])
 
+  rng[2] <- rng[2] + (rng[2] * 0.1) # final values change slightly when
+                                    # converting between colorspaces
   .basic_clr_check(clrs, new_clrs)
   expect_true(all(lt < rng[2] & lt > rng[1]))
   expect_identical(new_clrs[-sim], clrs[-sim])

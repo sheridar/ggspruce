@@ -81,3 +81,156 @@ test_that("collapse_colors", {
   expect_true(length(res) == 5)
   expect_true(all(res %in% clrs))
 })
+
+test_that("collapse_colors duplicates", {
+  dups  <- c("yellow", rep("blue", 3), "purple", "yellow")
+  answr <- c("yellow", "blue", "blue", "purple", "yellow")
+
+  res <- dups |>
+    collapse_colors(n = 5, difference = 15)
+
+  expect_true(length(res) == 5)
+  expect_identical(res, answr)
+
+  res <- c("yellow", rep("blue", 3), "purple", "yellow") |>
+    collapse_colors(n = 3, difference = 15)
+
+  expect_true(length(res) == 3)
+  expect_identical(res, c("yellow", "blue", "purple"))
+})
+
+# expand_colors ----
+
+test_that("expand_colors", {
+  res <- clrs |>
+    expand_colors(
+      n = c(rep(1, 4), 3, rep(1, 3)),
+      keep_original = TRUE
+    )
+
+  expect_true(length(res) == 10)
+  expect_identical(clrs, res[-c(6:7)])
+  expect_true(all(clrs %in% res))
+
+  res <- clrs |>
+    expand_colors(
+      n = c(rep(1, 4), 3, rep(1, 3)),
+      keep_original = FALSE
+    )
+
+  expect_true(length(res) == 10)
+  expect_true(!all(clrs %in% res))
+
+  res <- clrs |>
+    expand_colors(
+      names = list("A", "B", "C", "D", c("E", "F", "G", "H"), "I", "J", "K"),
+      keep_original = TRUE
+    )
+
+  expect_identical(names(res), LETTERS[1:11])
+  expect_true(length(res) == 11)
+  expect_identical(clrs, unname(res[-c(6:8)]))
+  expect_true(all(clrs %in% res))
+})
+
+test_that("expand_colors range", {
+  res <- clrs |>
+    expand_colors(
+      n = c(rep(1, 4), 3, rep(1, 3)),
+      keep_original = TRUE,
+      range = c(10, 15)
+    )
+})
+
+test_that("expand_colors direction", {
+  res <- clrs |>
+    expand_colors(
+      n = c(rep(1, 4), 3, rep(1, 3)),
+      keep_original = TRUE,
+      direction = 1
+    )
+
+  lt <- res[c(5, 6, 7)] |>
+    get_property("lightness")
+
+  lt <- lt$lightness
+
+  expect_true(length(res) == 10)
+  expect_identical(clrs, res[-c(6:7)])
+  expect_true(all(clrs %in% res))
+  expect_true(all(lt[2:3] > lt[1]))
+
+  res <- clrs |>
+    expand_colors(
+      n = c(rep(1, 4), 3, rep(1, 3)),
+      keep_original = TRUE,
+      direction = -1
+    )
+
+  lt <- res[c(5, 6, 7)] |>
+    get_property("lightness")
+
+  lt <- lt$lightness
+
+  expect_true(length(res) == 10)
+  expect_identical(clrs, res[-c(5:6)])
+  expect_true(all(clrs %in% res))
+  expect_true(all(lt[1:2] < lt[3]))
+})
+
+test_that("assign_colors", {
+  res <- clrs |>
+    assign_colors(
+      names = c("A", "B", "C")
+    )
+
+  expect_identical(unname(res), collapse_colors(clrs, 3))
+
+  res <- clrs[1:3] |>
+    assign_colors(
+      names = c("A", "B", "C", "D"),
+      difference = 5
+    )
+
+  res2 <- clrs[1:3] |>
+    interp_colors(4, order = TRUE)
+
+  ex_idx <- match(clrs[1:3], res2)
+
+  res2 <- spruce_colors(
+    res2,
+    property       = "interp",
+    difference     = 5,
+    exclude_colors = ex_idx,
+    order          = TRUE
+  )
+
+  expect_identical(unname(res), res2)
+
+  res <- clrs[1:3] |>
+    assign_colors(
+      names = c("A", "B", "C", "D", "E", "F"),
+      difference = 5,
+      order = FALSE
+    )
+
+  expect_identical(unname(res[1:3]), clrs[1:3])
+})
+
+test_that("sort_colors", {
+  res <- clrs |>
+    sort_colors(property = "hue")
+
+  hues <- clrs |>
+    farver::decode_colour(to = "hsl")
+
+  expect_identical(res, clrs[order(hues[, 1])])
+
+  res <- clrs |>
+    sort_colors(property = "lightness", desc = TRUE)
+
+  lt <- clrs |>
+    farver::decode_colour(to = "lab")
+
+  expect_identical(res, clrs[order(lt[, 1], decreasing = TRUE)])
+})

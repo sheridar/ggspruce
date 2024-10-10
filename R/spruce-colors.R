@@ -368,6 +368,7 @@ spruce_colors <- function(colors, difference = 10,
 
       dec_clrs[clr_idx, params[[2]]] <- optim$par
 
+      # Final values will change slightly when converting between colorspaces
       clrs <- farver::encode_colour(dec_clrs, from = params[[1]])
     }
 
@@ -686,7 +687,7 @@ PROP_PARAMS <- list(
   res
 }
 
-.chk_range_args <- function(range, colors, idx) {
+.chk_range_args <- function(range, colors, idx, buffer = 0.01) {
 
   if (rlang::is_list(range)) {
     res <- purrr::map(range, ~ {

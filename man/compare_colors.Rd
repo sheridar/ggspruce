@@ -9,7 +9,8 @@ compare_colors(
   y = NULL,
   filter = NULL,
   method = "CIE2000",
-  return_mat = FALSE
+  return_mat = FALSE,
+  names = TRUE
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ Possible values include,
 
 \item{return_mat}{Return matrix of minimum pairwise color differences for
 specified color filters.}
+
+\item{names}{Should color names be included in output}
 }
 \description{
 Compare colors in palette

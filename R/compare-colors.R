@@ -20,6 +20,7 @@
 #' - "CMC"
 #' @param return_mat Return matrix of minimum pairwise color differences for
 #' specified color filters.
+#' @param names Should color names be included in output
 #' @export
 compare_colors <- function(colors, y = NULL, filter = NULL, method = "CIE2000",
                            return_mat = FALSE, names = TRUE) {
