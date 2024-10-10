@@ -585,10 +585,10 @@ sort_colors <- function(colors, property = "hue", desc = FALSE) {
   }
 
   if (direction == 1) {
-    res <- c(val, rng[2])
+    res <- c(max(val, rng[1]), rng[2])
 
   } else {
-    res <- c(rng[1], val)
+    res <- c(rng[1], min(val, rng[2]))
   }
 
   res
