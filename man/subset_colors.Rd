@@ -10,8 +10,8 @@ subset_colors(colors, ..., method = "CIE2000", filter = NULL)
 \item{colors}{Vector of colors}
 
 \item{...}{Subsetting specification, colors can be subsetted based on
-minimum pairwise differences or color properties, refer to [get_property()].
-To subset based color differences, use the `difference` variable,
+minimum pairwise differences or color properties (refer to [get_property()]).
+To subset based on color differences, use the `difference` variable,
 e.g. `difference > 10`.
 To subset based on color properties, refer to them by name,
 e.g. `lightness > 50`.}

@@ -77,8 +77,8 @@ compare_colors <- function(colors, y = NULL, filter = NULL, method = "CIE2000",
 #'
 #' @param colors Vector of colors
 #' @param ... Subsetting specification, colors can be subsetted based on
-#' minimum pairwise differences or color properties, refer to [get_property()].
-#' To subset based color differences, use the `difference` variable,
+#' minimum pairwise differences or color properties (refer to [get_property()]).
+#' To subset based on color differences, use the `difference` variable,
 #' e.g. `difference > 10`.
 #' To subset based on color properties, refer to them by name,
 #' e.g. `lightness > 50`.
@@ -111,34 +111,51 @@ subset_colors <- function(colors, ..., method = "CIE2000", filter = NULL) {
 #' Sort colors based on property
 #'
 #' @param colors Vector of colors
-#' @param property Color properties to use for sorting
+#' @param ... Color attribute(s) to use for sorting, this can include
+#' minimum pairwise color differences or color properties
+#' (refer to [get_property()]).
+#' Specify 'difference' to sort based on color differences.
+#' @param method Method to use for comparing colors, refer to [compare_colors()]
+#' @param filter Filter to apply to color palette when
+#' calculating pairwise differences, refer to [compare_colors()]
 #' @param desc Sort in descending order
 #' @export
 sort_colors <- function(colors, ..., method = "CIE2000", filter = NULL,
                         desc = FALSE) {
 
-  # Calculate pairwise differences for colors
-  min_diff <- compare_colors(
-    colors,
-    method = method,
-    filter = filter,
-    names  = FALSE
-  )
+  clmns <- c(...)
+
+  if (purrr::is_empty(clmns)) {
+    cli::cli_abort("Must provide at least one property to use for sorting.")
+  }
+
+  props <- tibble::tibble(color = colors)
 
   # Get color properties
-  props <- get_property(colors, property = .properties)
+  prop_clmns <- clmns[clmns != "difference"]
 
-  props$difference <- min_diff
+  if (!purrr::is_empty(prop_clmns)) {
+    props <- get_property(colors, property = prop_clmns)
+  }
+
+  # Calculate pairwise differences for colors
+  if ("difference" %in% clmns) {
+    min_diff <- compare_colors(
+      colors,
+      method = method,
+      filter = filter,
+      names  = FALSE
+    )
+
+    props$difference <- min_diff
+  }
 
   # Sort colors
-  browser()
-
-  args <- substitute(list(...))[-1]
-  args <- purrr::map(args, ~ eval(.x, props))
+  args <- as.list(props[, clmns])
 
   args$decreasing <- desc
 
-  idx <- do.call(order, args)
+  idx <- .lift(order)(args)
 
   res <- props$color[idx]
 

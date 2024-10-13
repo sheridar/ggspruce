@@ -482,26 +482,6 @@ assign_colors <- function(colors, names, select_best = TRUE,
   res
 }
 
-#' Sort colors based on property
-#'
-#' @param colors Vector of colors
-#' @param property Color properties to use for sorting
-#' @param desc Sort in descending order
-#' @export
-sort_colors <- function(colors, property = "hue", desc = FALSE) {
-
-  .chk_spruce_args(colors = colors)
-
-  property <- .chk_prop_args(property, multi = TRUE)
-
-  prop <- get_property(colors, property)
-  vals <- as.list(prop[property])
-  idx  <- .lift(order, decreasing = desc)(vals)
-  res  <- prop$color[idx]
-
-  res
-}
-
 #' Modified version of scales::colour_ramp() that accepts input values for `x`
 #' This allows new colors to be interspersed evenly between the original colors
 #' @noRd
