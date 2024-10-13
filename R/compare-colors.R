@@ -89,29 +89,12 @@ compare_colors <- function(colors, y = NULL, filter = NULL, method = "CIE2000",
 subset_colors <- function(colors, ..., method = "CIE2000", filter = NULL) {
 
   # Calculate pairwise differences for colors
-  dst <- compare_colors(
+  min_diff <- compare_colors(
     colors,
-    method     = method,
-    filter     = filter,
-    return_mat = TRUE
+    method = method,
+    filter = filter,
+    names  = FALSE
   )
-
-  # Calculate minimum difference for each color
-  r_vals <- purrr::map_dbl(
-    seq_len(nrow(dst) - 1),
-    ~ min(dst[.x, (.x + 1):ncol(dst)])
-  )
-
-  r_vals <- c(r_vals, NA)
-
-  c_vals <- purrr::map_dbl(
-    seq_len(ncol(dst))[-1],
-    ~ min(dst[1:(.x - 1), .x])
-  )
-
-  c_vals <- c(NA, c_vals)
-
-  min_diff <- pmin(r_vals, c_vals, na.rm = TRUE)
 
   # Get color properties
   props <- get_property(colors, property = .properties)
@@ -121,6 +104,43 @@ subset_colors <- function(colors, ..., method = "CIE2000", filter = NULL) {
   # Subset colors
   res <- subset(props, ...)
   res <- res$color
+
+  res
+}
+
+#' Sort colors based on property
+#'
+#' @param colors Vector of colors
+#' @param property Color properties to use for sorting
+#' @param desc Sort in descending order
+#' @export
+sort_colors <- function(colors, ..., method = "CIE2000", filter = NULL,
+                        desc = FALSE) {
+
+  # Calculate pairwise differences for colors
+  min_diff <- compare_colors(
+    colors,
+    method = method,
+    filter = filter,
+    names  = FALSE
+  )
+
+  # Get color properties
+  props <- get_property(colors, property = .properties)
+
+  props$difference <- min_diff
+
+  # Sort colors
+  browser()
+
+  args <- substitute(list(...))[-1]
+  args <- purrr::map(args, ~ eval(.x, props))
+
+  args$decreasing <- desc
+
+  idx <- do.call(order, args)
+
+  res <- props$color[idx]
 
   res
 }
