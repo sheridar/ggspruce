@@ -500,6 +500,13 @@ spruce_colors <- function(colors, difference = 10,
 
   if (is.null(idx)) return(NULL)
 
+  err <- function() {
+    cli::cli_abort(
+      "Not all values for `adjust_colors` and `exclude_colors`
+         are present in `colors`."
+    )
+  }
+
   res <- idx
 
   if (is.character(idx)) {
@@ -512,12 +519,10 @@ spruce_colors <- function(colors, difference = 10,
 
     res <- match(idx, names(clrs))
 
-    if (any(is.na(res))) {
-      cli::cli_abort(
-        "Not all values for `adjust_colors` and `exclude_colors`
-         are present in `colors`."
-      )
-    }
+    if (any(is.na(res))) err()
+
+  } else {
+    if (any(!idx %in% seq_along(clrs))) err()
   }
 
   res

@@ -60,6 +60,67 @@ test_that("distinct colors", {
   expect_identical(new_clrs, clrs)
 })
 
+# adjust_colors
+test_that("adjust_colors", {
+  new_clrs <- clrs |>
+    spruce_colors(difference = 15, adjust_colors = 2)
+
+  .basic_clr_check(clrs[-2], new_clrs[-2])
+  expect_true(clrs[2] != new_clrs[2])
+
+  .basic_clr_check(clrs[-2], new_clrs[-2])
+  expect_true(clrs[2] != new_clrs[2])
+
+  ex <- clrs |>
+    subset_colors(difference < 10)
+
+  ex <- match(ex[1], clrs)
+
+  new_clrs <- clrs |>
+    spruce_colors(difference = 10, exclude_colors = 7)
+
+  expect_true(clrs[ex] == new_clrs[ex])
+})
+
+# Errors
+test_that("spruce_colors errors", {
+  expect_error(
+    clrs |>
+      spruce_colors(adjust_colors = 1, exclude_colors = 1),
+    "different"
+  )
+
+  expect_error(
+    clrs |>
+      spruce_colors(adjust_colors = 100, exclude_colors = 1),
+    "present in"
+  )
+
+  expect_error(
+    setNames(clrs[1:3], LETTERS[1:3]) |>
+      spruce_colors(adjust_colors = "A", exclude_colors = "E"),
+    "present in"
+  )
+
+  expect_error(
+    clrs |>
+      spruce_colors(difference = c(1, 2)),
+    "difference"
+  )
+
+  expect_error(
+    clrs |>
+      spruce_colors(difference = "10"),
+    "difference"
+  )
+
+  expect_error(
+    clrs |>
+      spruce_colors(maxit = "10"),
+    "maxit"
+  )
+})
+
 
 # RANGE ----
 
