@@ -123,8 +123,15 @@ interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE,
   if (keep_original) {
     if (!rlang::is_null(before) || !rlang::is_null(after)) {
       new_pos <- sort(c(before - 0.5, after + 0.5))
-      new_idx <- sort(c(seq_len(clrs_n), new_pos))
 
+      if (any(new_pos < 1 | new_pos > clrs_n)) {
+        cli::cli_abort(
+          "`before` must be >1 and `after` must be <{clrs_n} since new colors
+           cannot be interpolated before the first or after the last color."
+        )
+      }
+
+      new_idx <- sort(c(seq_len(clrs_n), new_pos))
       new_idx <- purrr::map(new_pos, ~ which(new_idx == .x))
       new_idx <- unique(c(new_idx, recursive = TRUE))
 
