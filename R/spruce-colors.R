@@ -63,9 +63,15 @@ spruce_colors <- function(colors, difference = 10,
                           exclude_colors = NULL, order = FALSE, maxit = 500,
                           ...) {
 
-  colors         <- .chk_colors(colors)
-  adjust_colors  <- .chk_colors(adjust_colors)
-  exclude_colors <- .chk_colors(exclude_colors)
+  colors <- .chk_colors(colors)
+
+  if (is.character(adjust_colors)) {
+    adjust_colors <- .chk_colors(adjust_colors)
+  }
+
+  if (is.character(exclude_colors)) {
+    exclude_colors <- .chk_colors(exclude_colors)
+  }
   
   .chk_spruce_args(
     difference     = difference,
