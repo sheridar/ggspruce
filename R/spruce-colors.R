@@ -63,8 +63,11 @@ spruce_colors <- function(colors, difference = 10,
                           exclude_colors = NULL, order = FALSE, maxit = 500,
                           ...) {
 
+  colors         <- .chk_colors(colors)
+  adjust_colors  <- .chk_colors(adjust_colors)
+  exclude_colors <- .chk_colors(exclude_colors)
+  
   .chk_spruce_args(
-    colors         = colors,
     difference     = difference,
     method         = method,
     range          = range,
@@ -549,18 +552,11 @@ PROP_PARAMS <- list(
 
 #' Check arguments
 #' @noRd
-.chk_spruce_args <- function(colors = NULL, difference = NULL, method = NULL,
+.chk_spruce_args <- function(difference = NULL, method = NULL,
                              range = NULL,
                              adjust_colors = NULL, exclude_colors = NULL,
                              maxit = NULL, n = NULL, exact = NULL,
                              keep_original = NULL) {
-
-  # Check colors
-  if (!missing(colors) && !rlang::is_null(colors)) {
-    if (!rlang::is_character(colors) || !rlang::has_length(colors)) {
-      cli::cli_abort("`colors` must be a character vector.")
-    }
-  }
 
   # Check difference
   if (!missing(difference)) {

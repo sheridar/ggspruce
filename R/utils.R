@@ -68,3 +68,16 @@ NULL
     do.call("..f", c(.x, defaults, list(...)))
   }
 }
+
+#' Encode colors as hex code
+.chk_colors <- function(colors) {
+  if (is.null(colors)) return(NULL)
+  
+  if (!rlang::is_character(colors) || !rlang::has_length(colors)) {
+    cli::cli_abort("`colors` must be a character vector.")
+  }
+  
+  colors <- rgb(t(col2rgb(colors)) / 255)
+
+  colors
+}
