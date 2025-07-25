@@ -99,7 +99,7 @@ test_that("spruce_colors errors", {
   expect_error(
     setNames(clrs[1:3], LETTERS[1:3]) |>
       spruce_colors(adjust_colors = "A", exclude_colors = "E"),
-    "present in"
+    "invalid color"
   )
 
   expect_error(

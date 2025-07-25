@@ -367,8 +367,9 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
   colors <- .chk_colors(colors)
   
   .chk_spruce_args(
+    colors        = colors,
     keep_original = keep_original,
-    range = range
+    range         = range
   )
 
   property <- .chk_prop_args(property, multi = FALSE)

@@ -74,6 +74,7 @@ spruce_colors <- function(colors, difference = 10,
   }
   
   .chk_spruce_args(
+    colors         = colors,
     difference     = difference,
     method         = method,
     range          = range,
@@ -558,12 +559,18 @@ PROP_PARAMS <- list(
 
 #' Check arguments
 #' @noRd
-.chk_spruce_args <- function(difference = NULL, method = NULL,
+.chk_spruce_args <- function(colors = NULL, difference = NULL, method = NULL,
                              range = NULL,
                              adjust_colors = NULL, exclude_colors = NULL,
                              maxit = NULL, n = NULL, exact = NULL,
                              keep_original = NULL) {
 
+  colors_provided <- !missing(colors)
+  
+  if (colors_provided) {
+    colors <- .chk_colors(colors)
+  }
+  
   # Check difference
   if (!missing(difference)) {
     if (!rlang::is_bare_numeric(difference) || !rlang::has_length(difference, 1)) {
@@ -592,8 +599,6 @@ PROP_PARAMS <- list(
     if (rlang::is_null(names(range)) || (rlang::is_vector(range) && !rlang::is_list(range))) {
       range <- list(range)
     }
-
-    colors_provided <- !missing(colors)
 
     purrr::walk(range, ~ {
       if (!rlang::has_length(.x, 2)) err()
