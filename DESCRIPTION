@@ -18,7 +18,8 @@ Imports:
     methods,
     purrr,
     rlang,
-    tibble
+    tibble,
+    sf
 Suggests: 
     covr,
     cowplot,

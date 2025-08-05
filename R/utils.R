@@ -46,6 +46,14 @@
 #' @export %||% .data
 NULL
 
+#' ggplot2 exports
+#'
+#' @name ggplot_exports
+#' @importFrom ggplot2 element_grob merge_element
+#' @aliases element_grob merge_element
+#' @export element_grob merge_element
+NULL
+
 #' Lift the domain of a function
 #'
 #' To replace `purrr::lift_dl()`, which is deprecated in purrr v1.0.0
@@ -80,4 +88,48 @@ NULL
   colors <- rgb(t(col2rgb(colors)) / 255)
 
   colors
+}
+
+# More performant modifyList without recursion
+modify_list <- function(old, new) {
+  for (i in names(new)) old[[i]] <- new[[i]]
+  old
+}
+
+descent_cache <- new.env(parent = emptyenv())
+
+#' Important: This function is not vectorized. Do not use to look up multiple
+#' font descents at once.
+#' @importFrom grid grobDescent
+font_descent <- function(family = "", face = "plain", size = 12, cex = 1) {
+  cur_dev <- names(grDevices::dev.cur())
+
+  if (cur_dev == "null device") {
+    cache <- FALSE   # don't cache if no device open
+  } else {
+    cache <- TRUE
+  }
+  key <- paste0(cur_dev, ':', family, ':', face, ":", size, ":", cex)
+  # we only look up the first result; this function is not vectorized
+  key <- key[1]
+
+  descent <- descent_cache[[key]]
+
+  if (is.null(descent)) {
+    descent <- grid::convertHeight(grid::grobDescent(grid::textGrob(
+      label = "gjpqyQ",
+      gp = grid::gpar(
+        fontsize = size,
+        cex = cex,
+        fontfamily = family,
+        fontface = face
+      )
+    )), 'inches')
+
+    if (cache) {
+      descent_cache[[key]] <- descent
+    }
+  }
+
+  descent
 }
