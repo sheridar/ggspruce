@@ -34,6 +34,8 @@
 resize_colors <- function(colors, n, difference = 15, method = "CIE2000",
                           filter = NULL, order = TRUE, maxit = 500, ...) {
 
+  colors <- .chk_colors(colors)
+  
   n_clrs <- length(colors)
 
   if (n_clrs == n) return(colors)
@@ -103,6 +105,8 @@ interp_colors <- function(colors, n, keep_original = TRUE, order = TRUE,
       )
     }
   }
+
+  colors <- .chk_colors(colors)
 
   clrs_n <- length(colors)
 
@@ -207,7 +211,9 @@ collapse_colors <- function(colors, n, difference = 15, method = "CIE2000",
                             filter = NULL, exact = NULL, maxit = 500, ...) {
 
   # Check arguments
-  .chk_spruce_args(colors = colors, n = n, exact = exact)
+  colors <- .chk_colors(colors)
+
+  .chk_spruce_args(n = n, exact = exact)
 
   if (n >= length(colors)) return(colors)
 
@@ -358,10 +364,12 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
                           property = "lightness", direction = NULL,
                           range = NULL, ...) {
 
+  colors <- .chk_colors(colors)
+  
   .chk_spruce_args(
-    colors = colors,
+    colors        = colors,
     keep_original = keep_original,
-    range = range
+    range         = range
   )
 
   property <- .chk_prop_args(property, multi = FALSE)
@@ -464,7 +472,7 @@ expand_colors <- function(colors, n = NULL, names = NULL, keep_original = FALSE,
 assign_colors <- function(colors, names, select_best = TRUE,
                           order = TRUE, ...) {
 
-  .chk_spruce_args(colors = colors)
+  colors <- .chk_colors(colors)
 
   purrr::walk(list(select_best, order), ~ {
     if (!rlang::is_bare_logical(.x) || !rlang::has_length(.x, 1)) {

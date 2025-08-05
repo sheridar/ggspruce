@@ -25,8 +25,10 @@
 compare_colors <- function(colors, y = NULL, filter = NULL, method = "CIE2000",
                            return_mat = FALSE, names = TRUE) {
 
-  .chk_spruce_args(colors = colors, method = method)
-  .chk_spruce_args(colors = y)
+  colors <- .chk_colors(colors)
+  y      <- .chk_colors(y)
+
+  .chk_spruce_args(method = method)
 
   up_tri <- is.null(y)
 
@@ -215,8 +217,7 @@ get_property <- function(colors, property = .properties) {
 plot_colors <- function(colors, filter = NULL, label_size = 14,
                         label_color = "white", ...) {
 
-  .chk_spruce_args(colors = colors)
-
+  colors <- .chk_colors(colors)
   filter <- .chk_filt_args(filter = filter, multi = FALSE)
 
   colors <- .filter_clrs(colors, filter = unname(filter))

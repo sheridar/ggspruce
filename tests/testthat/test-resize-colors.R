@@ -83,8 +83,8 @@ test_that("collapse_colors", {
 })
 
 test_that("collapse_colors duplicates", {
-  dups  <- c("yellow", rep("blue", 3), "purple", "yellow")
-  answr <- c("yellow", "blue", "blue", "purple", "yellow")
+  dups  <- c("#0000FF", rep("#FFFF00", 3), "#A020F0", "#0000FF")
+  answr <- c("#0000FF", "#FFFF00", "#FFFF00", "#FFFF00", "#A020F0")
 
   res <- dups |>
     collapse_colors(n = 5, difference = 15)
@@ -92,11 +92,11 @@ test_that("collapse_colors duplicates", {
   expect_true(length(res) == 5)
   expect_identical(res, answr)
 
-  res <- c("yellow", rep("blue", 3), "purple", "yellow") |>
+  res <- c("#0000FF", rep("#FFFF00", 3), "#A020F0", "#0000FF") |>
     collapse_colors(n = 3, difference = 15)
 
   expect_true(length(res) == 3)
-  expect_identical(res, c("yellow", "blue", "purple"))
+  expect_identical(res, c("#0000FF", "#FFFF00", "#A020F0"))
 })
 
 # expand_colors ----
@@ -140,6 +140,13 @@ test_that("expand_colors range", {
       keep_original = TRUE,
       range = c(10, 15)
     )
+  
+  lt <- res[!res %in% clrs] |>
+    get_property("lightness")
+
+  lt <- round(lt$lightness)
+
+  expect_true(all(lt >= 10) && all(lt <= 15))
 })
 
 test_that("expand_colors direction", {

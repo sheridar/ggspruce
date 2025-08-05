@@ -63,6 +63,16 @@ spruce_colors <- function(colors, difference = 10,
                           exclude_colors = NULL, order = FALSE, maxit = 500,
                           ...) {
 
+  colors <- .chk_colors(colors)
+
+  if (is.character(adjust_colors)) {
+    adjust_colors <- .chk_colors(adjust_colors)
+  }
+
+  if (is.character(exclude_colors)) {
+    exclude_colors <- .chk_colors(exclude_colors)
+  }
+  
   .chk_spruce_args(
     colors         = colors,
     difference     = difference,
@@ -555,13 +565,12 @@ PROP_PARAMS <- list(
                              maxit = NULL, n = NULL, exact = NULL,
                              keep_original = NULL) {
 
-  # Check colors
-  if (!missing(colors) && !rlang::is_null(colors)) {
-    if (!rlang::is_character(colors) || !rlang::has_length(colors)) {
-      cli::cli_abort("`colors` must be a character vector.")
-    }
+  colors_provided <- !missing(colors)
+  
+  if (colors_provided) {
+    colors <- .chk_colors(colors)
   }
-
+  
   # Check difference
   if (!missing(difference)) {
     if (!rlang::is_bare_numeric(difference) || !rlang::has_length(difference, 1)) {
@@ -590,8 +599,6 @@ PROP_PARAMS <- list(
     if (rlang::is_null(names(range)) || (rlang::is_vector(range) && !rlang::is_list(range))) {
       range <- list(range)
     }
-
-    colors_provided <- !missing(colors)
 
     purrr::walk(range, ~ {
       if (!rlang::has_length(.x, 2)) err()
