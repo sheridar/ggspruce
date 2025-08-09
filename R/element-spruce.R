@@ -34,8 +34,10 @@ element_text_spruce <- function(family = NULL, face = NULL, colour = NULL,
                                 size = NULL, hjust = NULL, vjust = NULL, angle = NULL,
                                 lineheight = NULL, color = NULL, margin = NULL,
                                 debug = NULL, inherit.blank = FALSE,
-                                property = c("angle", "size"), range = list() 
-                              ) {
+                                property = c("angle", "size"),
+                                padding = grid::unit(5, "pt"), overhang = TRUE, 
+                                range = list(), fixed = TRUE
+                               ) {
 
   if (!is.null(color))  colour <- color
 
@@ -57,7 +59,8 @@ element_text_spruce <- function(family = NULL, face = NULL, colour = NULL,
       size = size, hjust = hjust, vjust = vjust,
       angle = angle, lineheight = lineheight, margin = margin,
       debug = debug, inherit.blank = inherit.blank,
-      property = property, range = range 
+      property = property, padding = padding, overhang = overhang,
+      range = range, fixed = fixed
     ),
     class = c("element_text_spruce", "element_text", "element")
   )

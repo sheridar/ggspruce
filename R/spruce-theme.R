@@ -43,27 +43,40 @@ print.spruce <- function(x, ...) {
   class(plt) <- cls
 
   # Identify theme elements to modify
+  # * set NULL device to prevent anything from being drawn during mock
+  #   rendering of plot
+  # * match params for each theme element
   th_spruce <- purrr::map_lgl(plt$theme, ~ "element_text_spruce" %in% class(.x))
-  th_spruce <- names(plt$theme[th_spruce])
-  th_spruce <- th_spruce[th_spruce %in% names(grob_name_key)]
+  th_spruce <- plt$theme[th_spruce]
 
-  grob_re <- grob_name_key[th_spruce]
-  
-  for (i in seq_along(grob_re)) {
+  th_nms <- names(th_spruce)
+  th_nms <- th_nms[th_nms %in% names(grob_name_key)]
+
+  el_params <- c("property", "padding", "overhang", "range")
+  el_params <- purrr::map(th_spruce[th_nms], ~ .x[el_params])
+
+  grob_re <- grob_name_key[th_nms]
+
+  dev_sz <- grDevices::dev.size()
+
+  pdf(NULL, width = dev_sz[1], height = dev_sz[2])
+
+  for (el in names(grob_re)) {
     plt <- .adjust_theme(
       plt,
-      element = names(grob_re[i]),
-      grob_regex = grob_re[[i]]
+      element    = el,
+      grob_regex = grob_re[[el]],
+      params     = el_params[[el]] 
     )
   }
+
+  invisible(grDevices::dev.off())
 
   print(plt)
 }
 
-.adjust_theme <- function(plt, element, grob_regex) {
+.adjust_theme <- function(plt, element, grob_regex, params) {
   
-  # browser()
-
   # Pull grobs to calculate overlap
   gtbl <- ggplot2::ggplotGrob(plt)
   
@@ -73,22 +86,35 @@ print.spruce <- function(x, ...) {
     cli::cli_abort("grob matching {grob_regex} not found")
   }
   
-  # Select new parameters
-  # * set NULL device to prevent anything from being drawn during mock
-  #   rendering of plot
-  dev_sz <- grDevices::dev.size()
-  
-  pdf(NULL, width = dev_sz[1], height = dev_sz[2])
+  ## SHOULD ADJUST RANGE AFTER EACH ITERATION TO REDUCE SEARCH AREA
+  # for (nm in grob_nms) {
+  #   .adjust_params(nm, gtbl, params)
+  # }
 
-  new_params <- purrr::map(grob_nms, ~ .adjust_params(.x, gtbl))
-  new_params <- rbind(new_params)
-  new_params <- purrr::imap(new_params, ~ .param_fns[[.y]](.x))
+  ## SHOULD SELECT PARAMS BASED ON DIFFERENCE WITH ORIGINAL VALUES
+  ## BUT NEED TO PROVIDE ACCESS TO THE ORIGINAL VALUES HERE
+  new_params <- purrr::map(grob_nms, ~ .adjust_params(.x, gtbl, params))
+  new_params <- dplyr::bind_rows(new_params)
+  
+  .sort_param_fns <- list(
+    size  = dplyr::row_number,
+    angle = function(x) {
+      dif <- purrr::map_dbl(x, ~ min(.x, 360 - .x))
+      
+      dplyr::row_number(dplyr::desc(dif))
+    }
+  )
+
+  for (prop in params$property) {
+    new_params <- dplyr::arrange(new_params, .sort_param_fns[[prop]](!!sym(prop)))
+  }
+
+  new_params$dist <- NULL
+
+  new_params <- head(new_params, 1)
 
   # Set new theme
   new_th <- .lift(ggplot2::element_text)(new_params)
-
-  invisible(grDevices::dev.off())
-  
   new_th <- purrr::set_names(list(new_th), element)
   new_th <- do.call(theme, new_th)
   
@@ -110,12 +136,7 @@ print.spruce <- function(x, ...) {
   plt
 }
 
-.param_fns <- list(
-  size  = min,
-  angle = max
-)
-
-.adjust_params <- function(grob_name, gtable) {
+.adjust_params <- function(grob_name, gtable, params) {
 
   # Pull grob
   grob_idx <- which(gtable$layout$name == grob_name)
@@ -140,36 +161,49 @@ print.spruce <- function(x, ...) {
     null_y <- which(grid::unitType(gtable$heights) == "null")
   
     # Identify grob with absolute dimensions for the null cell
-    null_grobs <- gtable$layout %>%
-      rowwise() %>%
-      mutate(
-        null_x = any(null_x %in% l:r),
-        null_y = any(null_y %in% t:b)
-      ) %>%
-      ungroup() %>%
-      mutate(
-        idx = row_number(),
-        absolute = purrr::map_lgl(gtable$grobs, ~ inherits(.x, "absoluteGrob"))
-      ) %>%
-      filter(absolute & (null_x | null_y))
-  
+    # * use this grob to fill in the missing dimensions in the gTable
+    null_grobs <- dplyr::rowwise(gtable$layout)
+
+    null_grobs <- dplyr::mutate(
+      null_grobs,
+      null_x = any(null_x %in% l:r),
+      null_y = any(null_y %in% t:b)
+    )
+
+    null_grobs <- dplyr::ungroup(null_grobs)
+    
+    null_grobs <- dplyr::mutate(
+      null_grobs,
+      idx = dplyr::row_number(),
+      absolute = purrr::map_lgl(gtable$grobs, ~ inherits(.x, "absoluteGrob"))
+    )
+    
+    null_grobs <- dplyr::filter(null_grobs, absolute & (null_x | null_y))
+    
     # Calculate missing dimensions for null cells
-    null_grobs <- null_grobs %>%
-      mutate(
-        dim = purrr::map2_dbl(idx, null_x, ~ {
-          gb <- gtable$grobs[[.x]]
-  
-          grid::seekViewport(gb$vp$name)
-  
-          if (.y) {
-            grid::convertWidth(grid::grobWidth(gb), "inches", valueOnly = TRUE)
-          } else {
-            grid::convertHeight(grid::grobHeight(gb), "inches", valueOnly = TRUE)
-          }
-        }),
-        dim_idx = ifelse(null_x, l, t)
-      ) %>%
-      dplyr::select(-c(t, l, b, r, z, clip))
+    null_grobs <- dplyr::mutate(
+      null_grobs,
+      dim = purrr::map2_dbl(idx, null_x, ~ {
+        gb <- gtable$grobs[[.x]]
+        
+        grid::seekViewport(gb$vp$name)
+        
+        if (.y) {
+          grid::convertWidth(
+            grid::grobWidth(gb),
+            "inches", valueOnly = TRUE
+          )
+        } else {
+          grid::convertHeight(
+            grid::grobHeight(gb),
+            "inches", valueOnly = TRUE
+          )
+        }
+      }),
+      dim_idx = ifelse(null_x, l, t)
+    )
+
+    null_grobs <- dplyr::select(null_grobs, -c(t, l, b, r, z, clip))
     
     grid::upViewport(3)
   
@@ -185,6 +219,8 @@ print.spruce <- function(x, ...) {
     layout_ht <- grid::convertHeight(gtable$heights, "inches", valueOnly = TRUE)
     layout_ht[as.numeric(names(null_ht))] <- unname(null_ht)
   
+    ## It would be good to check this, but need to account for
+    #  small rounding differences
     # if (sum(layout_wd) != (dev.size()[1]) || sum(layout_ht) != dev.size()[2]) {
     #   cli::cli_abort("gtable dimensions incorrectly calculated")
     # }
@@ -217,14 +253,12 @@ print.spruce <- function(x, ...) {
 
   grid::seekViewport(grob$vp$name)
 
-  new_params <- .adjust_grob(grob, bbox = bbox)
+  new_params <- .adjust_grob(grob, bbox = bbox, params)
   
   new_params
 }
 
-.adjust_grob <- function(grob, bbox, ...) {
-
-  # browser()
+.adjust_grob <- function(grob, bbox, params) {
 
   # Calculate label dimensions
   lab_grob <- .find_text_grob(grob)
@@ -246,59 +280,111 @@ print.spruce <- function(x, ...) {
     )
   }
 
-  # Set sizes to check
-  new_size <- lab_grob$gp$fontsize
-  
-  szs <- c(seq(1, 0.1, -0.1), seq(0.1, 0.01, -0.01))
-  szs <- new_size * szs
-  
-  # Set angles to check
-  new_angle <- angle <- angles <- lab_grob$rot
-  
-  params <- purrr::map(szs, ~ {
-    sz <- .x
-    
-    purrr::map(angles, ~ list(size = sz, angle = .x))  
-  })
-  
-  params <- purrr::flatten(params)
-  
-  # Check each set of params
+  # Automatically set ranges for each text property
+  size  <- lab_grob$gp$fontsize
+  angle <- lab_grob$rot
+  hjust <- lab_grob$hjust
+  vjust <- lab_grob$vjust
 
-  min_ovlp <- Inf
-
-  for (param in params) {
-    sz  <- param$size
-    agl <- param$angle
+  params$range$size <- params$range$size %||% c(max(4, size / 10), size)
+  
+  if (is.null(params$range$angle)) {
+    if (angle >= 0 && angle <= 90) {
+      params$range$angle <- c(0, 90)
     
-    ovlp <- .check_overlap(
+    } else if (angle >= 270 && angle <= 360) {
+      params$range$angle <- list(c(270, 360))
+      
+    } else {
+      params$range$angle <- list(c(0, 360))
+    }
+  }
+  
+  # Objective function
+  # * optimize using the difference between the optimal text padding and
+  #   actual distance between labels
+  .get_obj_fn <- function(prop, padding) {
+    args <- list(
       labels = labs,
       x      = x,
       y      = y,
       gp     = gp,
-      size   = sz,
-      angle  = agl,
-      hjust  = lab_grob$hjust,
-      vjust  = lab_grob$vjust,
       bbox   = bbox,
-      return_value = TRUE,
-      ...
+      return_value = TRUE
     )
-
-    if (ovlp < min_ovlp) {
-      min_ovlp <- ovlp
-
-      new_size  <- sz
-      new_angle <- agl
-    }
     
-    if (ovlp == 0) break()
+    function(value, size, angle, hjust, vjust) {
+      args$size  <- size
+      args$angle <- angle
+      args$hjust <- hjust
+      args$vjust <- vjust
+
+      # If adjusting angle, automatically adjust hjust/vjust based on value
+      # being checked
+      if (identical(prop, "angle")) {
+        just <- .get_just(value)
+        
+        args$hjust <- just[1]
+        args$vjust <- just[2]
+      }
+
+      args[[prop]] <- value
+      
+      ovlp <- .lift(.check_overlap)(args)
+      
+      if (ovlp < 0) ovlp <- (ovlp - 1) * 1e6
+      
+      dif <- ovlp - padding
+      
+      abs(dif)
+    }
+  }
+  
+  # Optimize parameters
+  # * set threshold for stopping adjustments
+  padding   <- grid::convertUnit(params$padding, "inches", valueOnly = TRUE)
+  threshold <- padding * 2
+
+  fns <- purrr::map(
+    purrr::set_names(params$property),
+    ~ .get_obj_fn(.x, padding = padding)
+  )
+
+  res <- list(
+    size = size, angle = angle,
+    hjust = hjust, vjust = vjust,
+    dist = Inf
+  )
+
+  for (prop in params$property) {
+    optim <- stats::optimize(
+      fns[[prop]], params$range[[prop]],
+      size  = res$size,
+      angle = res$angle,
+      hjust = res$hjust,
+      vjust = res$vjust
+    )
+    
+    # Only save optimized values if they are better than the previous ones
+    if (optim[[2]] < res$dist) {
+      res[[prop]] <- optim[[1]]
+      res$dist    <- optim[[2]]
+      
+      # Update hjust/vjust based on optimal angle
+      # * this is important since adjusted hjust/vjust values were used when
+      #   checking for overlap
+      if (identical(prop, "angle")) {
+        just <- .get_just(optim[[1]])
+        
+        res$hjust <- just[1]
+        res$vjust <- just[2]
+      }
+    }
+
+    if (optim[[2]] < threshold) break()
   }
 
-  res <- data.frame(
-    size  = new_size,
-    angle = new_angle
-  )
+  res <- as.data.frame(res)
 
   res
 }
@@ -367,6 +453,24 @@ print.spruce <- function(x, ...) {
   }
 }
 
+.get_just <- function(angle) {
+  key <- tibble::tribble(
+    ~ agl, ~ hjust, ~ vjust,
+    0,       0.5,     1,
+    89,      1,       1,
+    135,     1,       0.5,
+    180,     0.5,     0,
+    315,     0,       1,
+    360,     0.5,     1
+  )
+  
+  just <- dplyr::filter(key, agl >= angle)
+  just <- head(just, 1)
+  
+  res <- c(just$hjust, just$vjust)
+  res
+}
+
 #' Check for overlap between labels
 #' 
 #' @param labels character vector of labels
@@ -375,8 +479,7 @@ print.spruce <- function(x, ...) {
 #' @param return_value if TRUE return the max overlap between the provided
 #'   labels, if FALSE return TRUE/FALSE
 #' @return max overlap between labels
-.check_overlap <- function(labels, x, y, ..., return_value = TRUE
-) {
+.check_overlap <- function(labels, x, y, ..., return_value = TRUE) {
 
   max_ovlp <- 0
 
@@ -394,11 +497,11 @@ print.spruce <- function(x, ...) {
       ...
     )
 
-    overlap <- ovlp > 0
+    overlap <- ovlp < 0
     
     if (!return_value && overlap) break()
 
-    max_ovlp <- max(ovlp, max_ovlp)
+    max_ovlp <- min(ovlp, max_ovlp)
   }
   
   if (!return_value) return(overlap)
@@ -434,7 +537,7 @@ print.spruce <- function(x, ...) {
 
   gp$fontsize <- size
 
-  ovlp <- 0
+  ovlp <- Inf
 
   # Create polygons for provided labels
   plys <- purrr::imap(labels, ~ {
@@ -447,11 +550,18 @@ print.spruce <- function(x, ...) {
     )
   })
 
+  # We are iterating through the polygons two separate times
+  # * this needs to be consolidated
+  # * return negative value for overlap
   if (length(labels) > 1) {
     ovlp <- sf::st_intersection(plys[[1]], plys[[2]])
     ovlp <- sf::st_area(ovlp)
-    
-    if (purrr::is_empty(ovlp)) ovlp <- 0
+
+    if (purrr::is_empty(ovlp)) {
+      ovlp <- as.numeric(sf::st_distance(plys[[1]], plys[[2]]))
+    } else {
+      ovlp <- -ovlp
+    }
   }
 
   # Check if labels extend past grob boundaries
@@ -460,12 +570,16 @@ print.spruce <- function(x, ...) {
       dif <- sf::st_difference(.x, bbox)
       dif <- sf::st_area(dif)
       
-      if (purrr::is_empty(dif)) dif <- 0
+      if (purrr::is_empty(dif)) {
+        dif <- as.numeric(sf::st_distance(.x, bbox))
+      } else {
+        dif <- -dif
+      }
 
       dif
     })
 
-    ovlp <- max(c(ovlp, ovhg))
+    ovlp <- min(c(ovlp, ovhg))
   }
 
   ovlp
