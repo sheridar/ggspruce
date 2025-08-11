@@ -136,6 +136,7 @@ print.spruce <- function(x, ...) {
   plt
 }
 
+## UGHH CHANGE PARAMS ARGUMENT NAMING IS CONFUSING!!
 .adjust_params <- function(grob_name, gtable, params) {
 
   # Pull grob
@@ -269,7 +270,11 @@ print.spruce <- function(x, ...) {
   x <- grid::convertX(lab_grob$x, "inches")
   y <- grid::convertY(lab_grob$y, "inches")
   
-  if (is.null(bbox)) {
+  # Calculate bounding box for grob
+  # * do not calculate if overhang is FALSE
+  if (!params$overhang) bbox <- NULL
+
+  if (is.null(bbox) && params$overhang) {
     bb_ht <- grid::convertHeight(grid::grobHeight(grob), "inches", valueOnly = TRUE)
     bb_wd <- grid::convertWidth(grid::grobWidth(grob), "inches", valueOnly = TRUE)
 
@@ -303,6 +308,7 @@ print.spruce <- function(x, ...) {
   # Objective function
   # * optimize using the difference between the optimal text padding and
   #   actual distance between labels
+  # * penalize negative values (overlapped area)
   .get_obj_fn <- function(prop, padding) {
     args <- list(
       labels = labs,
@@ -332,7 +338,7 @@ print.spruce <- function(x, ...) {
       
       ovlp <- .lift(.check_overlap)(args)
       
-      if (ovlp < 0) ovlp <- (ovlp - 1) * 1e6
+      if (ovlp < 0) ovlp <- (ovlp - 1) * 1e6  # penalize
       
       dif <- ovlp - padding
       
@@ -342,8 +348,7 @@ print.spruce <- function(x, ...) {
   
   # Optimize parameters
   # * set threshold for stopping adjustments
-  padding   <- grid::convertUnit(params$padding, "inches", valueOnly = TRUE)
-  threshold <- padding * 2
+  padding <- grid::convertUnit(params$padding, "inches", valueOnly = TRUE)
 
   fns <- purrr::map(
     purrr::set_names(params$property),
@@ -357,31 +362,46 @@ print.spruce <- function(x, ...) {
   )
 
   for (prop in params$property) {
-    optim <- stats::optimize(
-      fns[[prop]], params$range[[prop]],
+    optim <- coarse_fine_threshold_auto(
+      fns[[prop]],
+      lower             = params$range[[prop]][1],
+      upper             = params$range[[prop]][2],
+      threshold         = padding,
+      decreasing        = !identical(prop, "angle"),
+      target_coarse_pts = 10,
+
       size  = res$size,
       angle = res$angle,
       hjust = res$hjust,
       vjust = res$vjust
     )
     
+    ## OLD APPROACH
+    # optim <- stats::optimize(
+    #   fns[[prop]], params$range[[prop]],
+    #   size  = res$size,
+    #   angle = res$angle,
+    #   hjust = res$hjust,
+    #   vjust = res$vjust
+    # )
+    
     # Only save optimized values if they are better than the previous ones
-    if (optim[[2]] < res$dist) {
-      res[[prop]] <- optim[[1]]
-      res$dist    <- optim[[2]]
+    if (optim$value < res$dist) {
+      res[[prop]] <- optim$value
+      res$dist    <- optim$dist
       
       # Update hjust/vjust based on optimal angle
       # * this is important since adjusted hjust/vjust values were used when
       #   checking for overlap
       if (identical(prop, "angle")) {
-        just <- .get_just(optim[[1]])
+        just <- .get_just(optim$value)
         
         res$hjust <- just[1]
         res$vjust <- just[2]
       }
     }
 
-    if (optim[[2]] < threshold) break()
+    if (optim$dist <= padding) break()
   }
 
   res <- as.data.frame(res)
@@ -481,7 +501,7 @@ print.spruce <- function(x, ...) {
 #' @return max overlap between labels
 .check_overlap <- function(labels, x, y, ..., return_value = TRUE) {
 
-  max_ovlp <- 0
+  max_ovlp <- Inf
 
   lab_idx <- seq_along(labels)[-1]
 
@@ -565,13 +585,15 @@ print.spruce <- function(x, ...) {
   }
 
   # Check if labels extend past grob boundaries
+  # * need to extact boundaries to use st_distance
   if (!is.null(bbox)) {
     ovhg <- purrr::map_dbl(plys, ~ {
       dif <- sf::st_difference(.x, bbox)
       dif <- sf::st_area(dif)
       
       if (purrr::is_empty(dif)) {
-        dif <- as.numeric(sf::st_distance(.x, bbox))
+        dif <- sf::st_distance(sf::st_boundary(.x), sf::st_boundary(bbox))
+        dif <- as.numeric(dif)
       } else {
         dif <- -dif
       }
@@ -579,7 +601,10 @@ print.spruce <- function(x, ...) {
       dif
     })
 
-    ovlp <- min(c(ovlp, ovhg))
+    # Only use overhang when text extends past boundaries
+    if (any(ovhg < 0) || length(ovhg) == 1) {
+      ovlp <- min(c(ovlp, ovhg))
+    }
   }
 
   ovlp

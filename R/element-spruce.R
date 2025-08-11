@@ -35,7 +35,7 @@ element_text_spruce <- function(family = NULL, face = NULL, colour = NULL,
                                 lineheight = NULL, color = NULL, margin = NULL,
                                 debug = NULL, inherit.blank = FALSE,
                                 property = c("angle", "size"),
-                                padding = grid::unit(5, "pt"), overhang = TRUE, 
+                                padding = grid::unit(10, "pt"), overhang = TRUE, 
                                 range = list(), fixed = TRUE
                                ) {
 
