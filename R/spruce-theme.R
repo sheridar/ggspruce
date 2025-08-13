@@ -309,13 +309,16 @@ print.spruce <- function(x, ...) {
   # * optimize using the difference between the optimal text padding and
   #   actual distance between labels
   # * penalize negative values (overlapped area)
-  .get_obj_fn <- function(prop, padding) {
+  padding <- grid::convertUnit(params$padding, "inches", valueOnly = TRUE)
+
+  .get_obj_fn <- function(prop) {
     args <- list(
-      labels = labs,
-      x      = x,
-      y      = y,
-      gp     = gp,
-      bbox   = bbox,
+      labels  = labs,
+      x       = x,
+      y       = y,
+      gp      = gp,
+      bbox    = bbox,
+      padding = padding,
       return_value = TRUE
     )
     
@@ -340,19 +343,14 @@ print.spruce <- function(x, ...) {
       
       if (ovlp < 0) ovlp <- (ovlp - 1) * 1e6  # penalize
       
-      dif <- ovlp - padding
-      
-      abs(dif)
+      abs(ovlp)
     }
   }
   
   # Optimize parameters
-  # * set threshold for stopping adjustments
-  padding <- grid::convertUnit(params$padding, "inches", valueOnly = TRUE)
-
   fns <- purrr::map(
     purrr::set_names(params$property),
-    ~ .get_obj_fn(.x, padding = padding)
+    ~ .get_obj_fn(.x)
   )
 
   res <- list(
@@ -542,9 +540,10 @@ print.spruce <- function(x, ...) {
 #'   this is used for calcaulting overhang.
 #'   If provided the greater of label overlap and overhang will be returned,
 #'   if NULL only overlap will be considered
+#' @param padding text padding to use when calculating overlap/overhang
 #' @return overlap between pair of labels
 .calc_overlap <- function(labels, x, y, gp, size, angle, hjust, vjust,
-  bbox = NULL
+  bbox = NULL, padding = grid::unit(0, "pt")
 ) {
   
   if (length(labels) > 2) {
@@ -560,6 +559,8 @@ print.spruce <- function(x, ...) {
   ovlp <- Inf
 
   # Create polygons for provided labels
+  # * ideally padding would be incorporated when creating polygons,
+  #   but this will result in unintended overhang
   plys <- purrr::imap(labels, ~ {
     create_poly(
       .x, x[.y], y[.y],
@@ -573,6 +574,7 @@ print.spruce <- function(x, ...) {
   # We are iterating through the polygons two separate times
   # * this needs to be consolidated
   # * return negative value for overlap
+  # * adjust overlap based on text padding
   if (length(labels) > 1) {
     ovlp <- sf::st_intersection(plys[[1]], plys[[2]])
     ovlp <- sf::st_area(ovlp)
@@ -582,6 +584,8 @@ print.spruce <- function(x, ...) {
     } else {
       ovlp <- -ovlp
     }
+
+    ovlp <- ovlp - padding
   }
 
   # Check if labels extend past grob boundaries
@@ -598,10 +602,17 @@ print.spruce <- function(x, ...) {
         dif <- -dif
       }
 
+      if (hjust > 0 && hjust < 1 && vjust > 0 && vjust < 1) {
+        dif <- dif - padding
+      }
+
       dif
     })
 
     # Only use overhang when text extends past boundaries
+    # * or if there is only a single label, e.g. plot.title
+    # * when there are multiple labels the distance between labels is
+    #   all that matters as long as there is no overhang
     if (any(ovhg < 0) || length(ovhg) == 1) {
       ovlp <- min(c(ovlp, ovhg))
     }

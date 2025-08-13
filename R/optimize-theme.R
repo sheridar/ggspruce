@@ -72,6 +72,8 @@ coarse_fine_threshold_auto <- function(
     prev_x       <- NA_real_
     crossed_here <- FALSE
 
+    # browser()
+
     for (x in xs) {
       s <- fn(x, ...)
 
